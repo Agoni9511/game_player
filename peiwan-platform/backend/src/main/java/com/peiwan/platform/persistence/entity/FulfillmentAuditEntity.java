@@ -1,0 +1,2 @@
+package com.peiwan.platform.persistence.entity;import com.baomidou.mybatisplus.annotation.*;import java.time.LocalDateTime;
+@TableName("pw_fulfillment_audit") public class FulfillmentAuditEntity{@TableId(type=IdType.AUTO)public Long id;public Long fulfillmentId;public String action;public String beforeStatus;public String afterStatus;public String remark;public Long operatorId;public LocalDateTime createdAt;}

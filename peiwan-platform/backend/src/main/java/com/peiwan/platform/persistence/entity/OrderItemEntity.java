@@ -1,0 +1,2 @@
+package com.peiwan.platform.persistence.entity;import com.baomidou.mybatisplus.annotation.*;import java.math.BigDecimal;import java.time.LocalDateTime;
+@TableName("pw_order_item") public class OrderItemEntity{@TableId(type=IdType.AUTO)public Long id;public Long orderId;public Long productId;public Long skuId;public String productCode;public String productName;public String skuCode;public String skuName;public String productType;public BigDecimal unitPrice;public Integer quantity;public BigDecimal subtotalAmount;public String serviceSnapshot;public LocalDateTime createdAt;}

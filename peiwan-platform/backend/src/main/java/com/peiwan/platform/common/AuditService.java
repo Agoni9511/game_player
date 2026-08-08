@@ -1,0 +1,7 @@
+package com.peiwan.platform.common;
+import com.peiwan.platform.persistence.entity.*;import com.peiwan.platform.persistence.mapper.*;import jakarta.servlet.http.HttpServletRequest;import org.springframework.security.core.Authentication;import org.springframework.stereotype.Service;
+@Service public class AuditService{private final LoginLogMapper loginLogs;private final OperationLogMapper operationLogs;public AuditService(LoginLogMapper l,OperationLogMapper o){loginLogs=l;operationLogs=o;}
+ public void login(String username,boolean success,String message,HttpServletRequest request){var x=new LoginLogEntity();x.username=username;x.success=success;x.ipAddress=clientIp(request);x.userAgent=trim(request.getHeader("User-Agent"),512);x.message=trim(message,255);loginLogs.insert(x);}
+ public void operation(Authentication auth,String operation,String targetType,Object targetId,String detail,HttpServletRequest request){var x=new OperationLogEntity();x.operatorId=auth!=null&&auth.getPrincipal() instanceof Long id?id:null;x.operation=operation;x.targetType=targetType;x.targetId=targetId==null?null:targetId.toString();x.detail=trim(detail,1000);x.ipAddress=clientIp(request);operationLogs.insert(x);}
+ private String clientIp(HttpServletRequest r){var f=r.getHeader("X-Forwarded-For");return f==null||f.isBlank()?r.getRemoteAddr():f.split(",")[0].trim();}private String trim(String v,int max){return v==null?null:v.substring(0,Math.min(v.length(),max));}
+}

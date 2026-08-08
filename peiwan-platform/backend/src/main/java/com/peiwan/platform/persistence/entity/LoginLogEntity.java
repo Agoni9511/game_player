@@ -1,0 +1,1 @@
+package com.peiwan.platform.persistence.entity;import com.baomidou.mybatisplus.annotation.*;import java.time.LocalDateTime;@TableName("sys_login_log") public class LoginLogEntity{@TableId(type=IdType.AUTO)public Long id;public String username;public Boolean success;public String ipAddress;public String userAgent;public String message;public LocalDateTime createdAt;}

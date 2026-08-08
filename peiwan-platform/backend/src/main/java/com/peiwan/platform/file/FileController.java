@@ -1,0 +1,4 @@
+package com.peiwan.platform.file;
+import com.peiwan.platform.common.*;import jakarta.servlet.http.HttpServletRequest;import org.springframework.security.access.prepost.PreAuthorize;import org.springframework.security.core.Authentication;import org.springframework.web.bind.annotation.*;import org.springframework.web.multipart.MultipartFile;
+@RestController @RequestMapping("/api/file") public class FileController{private final FileStorage storage;private final AuditService audit;public FileController(FileStorage s,AuditService a){storage=s;audit=a;}
+@PreAuthorize("isAuthenticated()") @PostMapping("/upload") public ApiResponse<?> upload(Authentication a,@RequestPart("file")MultipartFile file,@RequestParam(defaultValue="IMAGE")String kind,HttpServletRequest request){var stored=storage.store(file,kind);audit.operation(a,"common:file:upload","FILE",null,stored.originalName()+" -> "+stored.url(),request);return ApiResponse.ok(stored);}}

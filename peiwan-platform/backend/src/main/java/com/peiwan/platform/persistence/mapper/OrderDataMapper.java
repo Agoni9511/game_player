@@ -1,0 +1,15 @@
+package com.peiwan.platform.persistence.mapper;import com.baomidou.mybatisplus.core.metadata.IPage;import com.baomidou.mybatisplus.extension.plugins.pagination.Page;import org.apache.ibatis.annotations.*;import java.util.*;
+public interface OrderDataMapper{
+ @Select("<script>select o.*,u.username customer_username,u.nickname customer_nickname,p.nickname player_name,(select product_name from pw_order_item i where i.order_id=o.id order by i.id limit 1) product_name from pw_order o join sys_user u on u.id=o.customer_id left join pw_player p on p.id=o.assigned_player_id where o.order_no like concat('%',#{orderNo},'%') and (u.username like concat('%',#{customer},'%') or u.nickname like concat('%',#{customer},'%')) <if test='status != null and status != &quot;&quot;'>and o.order_status=#{status}</if> order by o.id desc</script>") IPage<Map<String,Object>> orders(Page<Map<String,Object>> page,@Param("orderNo")String orderNo,@Param("customer")String customer,@Param("status")String status);
+ @Select("select o.*,u.username customer_username,u.nickname customer_nickname,p.nickname player_name from pw_order o join sys_user u on u.id=o.customer_id left join pw_player p on p.id=o.assigned_player_id where o.id=#{id}") Map<String,Object> orderDetail(long id);
+ @Select("select l.*,u.username operator_name from pw_order_status_log l left join sys_user u on u.id=l.operator_id where l.order_id=#{id} order by l.id") List<Map<String,Object>> statusLogs(long id);
+ @Select("select id,username,nickname,phone from sys_user where enabled=true order by id") List<Map<String,Object>> customers();
+ @Select("select id,player_no,nickname from pw_player where enabled=true and audit_status='APPROVED' order by sort_no,id") List<Map<String,Object>> players();
+ @Select("select * from sys_user where id=#{id} and enabled=true") Map<String,Object> enabledCustomer(long id);
+ @Select("select k.*,p.game_id,p.product_code,p.product_name,p.product_type,p.status product_status,g.game_name from pw_product_sku k join pw_product p on p.id=k.product_id join pw_game g on g.id=p.game_id where k.id=#{id}") Map<String,Object> skuSnapshot(long id);
+ @Update("update pw_product_sku set stock_quantity=stock_quantity-#{quantity} where id=#{skuId} and stock_quantity>=#{quantity}") int decrementStock(long skuId,int quantity);
+ @Select("select s.service_code,s.service_name,ps.service_quantity quantity,ps.unit_type from pw_product_service ps join pw_service_item s on s.id=ps.service_id where ps.product_id=#{id} order by ps.sort_no") List<Map<String,Object>> serviceSnapshot(long id);
+ @Select("select i.sku_id,i.quantity,k.stock_mode from pw_order_item i join pw_product_sku k on k.id=i.sku_id where i.order_id=#{id}") List<Map<String,Object>> stockRows(long id);
+ @Update("update pw_product_sku set stock_quantity=stock_quantity+#{quantity} where id=#{skuId}") int restoreStock(long skuId,int quantity);
+ @Select("select count(*) from pw_order where assigned_player_id=#{id} and order_status in('ASSIGNED','IN_SERVICE')") long activePlayerOrders(long id);
+}

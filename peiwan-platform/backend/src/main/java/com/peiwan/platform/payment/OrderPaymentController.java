@@ -1,0 +1,7 @@
+package com.peiwan.platform.payment;
+import com.peiwan.platform.common.*;import jakarta.servlet.http.HttpServletRequest;import org.springframework.security.access.prepost.PreAuthorize;import org.springframework.security.core.Authentication;import org.springframework.web.bind.annotation.*;
+@RestController public class OrderPaymentController{private final OrderPaymentService service;private final AuditService audit;public OrderPaymentController(OrderPaymentService service,AuditService audit){this.service=service;this.audit=audit;}
+ @PreAuthorize("hasAuthority('customer:order:pay')") @PostMapping("/api/customer/orders/{id}/pay") public ApiResponse<?> pay(Authentication a,@PathVariable long id,@RequestBody Pay b,HttpServletRequest r){var result=service.pay(uid(a),id,b.requestNo());audit.operation(a,"customer:order:pay","ORDER",id,"requestNo="+b.requestNo(),r);return ApiResponse.ok(result);}
+ @PreAuthorize("hasAuthority('customer:order:detail')") @GetMapping("/api/customer/orders/{id}/payment") public ApiResponse<?> detail(Authentication a,@PathVariable long id){return ApiResponse.ok(service.detail(uid(a),id));}
+ private long uid(Authentication a){return(Long)a.getPrincipal();}public record Pay(String requestNo){}
+}

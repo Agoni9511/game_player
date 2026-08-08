@@ -1,0 +1,3 @@
+package com.peiwan.platform.persistence.entity;
+import com.baomidou.mybatisplus.annotation.*;import java.time.LocalDateTime;
+@TableName("pw_dispatch_task") public class DispatchTaskEntity{@TableId(type=IdType.AUTO)public Long id;public String taskNo;public Long orderId;public String dispatchMode;public String taskStatus;public Long targetPlayerId;public Long acceptedPlayerId;public Integer attemptNo;public Integer candidateCount;public LocalDateTime deadlineAt;public LocalDateTime acceptedAt;public LocalDateTime cancelledAt;public Long createdBy;public LocalDateTime createdAt;public LocalDateTime updatedAt;}

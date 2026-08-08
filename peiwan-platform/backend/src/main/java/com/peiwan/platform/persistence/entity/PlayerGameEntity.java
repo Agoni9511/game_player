@@ -1,0 +1,3 @@
+package com.peiwan.platform.persistence.entity;
+import com.baomidou.mybatisplus.annotation.*;import java.time.LocalDateTime;
+@TableName("pw_player_game") public class PlayerGameEntity{@TableId(type=IdType.AUTO)public Long id;public Long playerId;public Long gameId;public String gameNickname;public String gameAccount;public String serverName;public String rankName;public Integer rankLevel;public Integer experienceYears;public String introduction;public String proofUrl;public Boolean isPrimary;public String auditStatus;public String auditRemark;public Boolean enabled;public LocalDateTime createdAt;public LocalDateTime updatedAt;}

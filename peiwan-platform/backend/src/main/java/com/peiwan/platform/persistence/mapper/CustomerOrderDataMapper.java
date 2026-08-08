@@ -1,0 +1,17 @@
+package com.peiwan.platform.persistence.mapper;import com.baomidou.mybatisplus.core.metadata.IPage;import com.baomidou.mybatisplus.extension.plugins.pagination.Page;import org.apache.ibatis.annotations.*;import java.util.*;
+public interface CustomerOrderDataMapper{
+ @Select("select auto_complete_enabled from pw_order_rule order by id limit 1") Boolean autoCompleteEnabled();
+ @Select("select o.id,o.assigned_player_id from pw_order o where o.order_status='WAIT_CUSTOMER_CONFIRM' and o.customer_confirm_deadline<=current_timestamp and not exists(select 1 from pw_after_sale a where a.order_id=o.id and a.after_sale_status in('PENDING','PROCESSING'))") List<Map<String,Object>> dueOrders();
+ @Select("<script>select o.*,p.nickname player_name,i.product_name,i.sku_name from pw_order o left join pw_player p on p.id=o.assigned_player_id left join pw_order_item i on i.id=(select min(x.id) from pw_order_item x where x.order_id=o.id) where o.customer_id=#{uid}<if test='status != null and status != &quot;&quot;'> and o.order_status=#{status}</if> order by o.id desc</script>") IPage<Map<String,Object>> ownOrders(Page<Map<String,Object>> page,@Param("uid")long uid,@Param("status")String status);
+ @Select("select o.*,p.nickname player_name from pw_order o left join pw_player p on p.id=o.assigned_player_id where o.id=#{id} and o.customer_id=#{uid}") Map<String,Object> ownDetail(long id,long uid);
+ @Select("select product_name,sku_name,quantity,unit_price,service_snapshot from pw_order_item where order_id=#{id}") List<Map<String,Object>> items(long id);
+ @Select("select * from pw_order_game_profile where order_id=#{id} limit 1") Map<String,Object> gameProfile(long id);
+ @Select("select * from pw_fulfillment where order_id=#{id} limit 1") Map<String,Object> fulfillment(long id);
+ @Select("select proof_url from pw_fulfillment_proof where fulfillment_id=#{id} order by sort_no") List<String> fulfillmentProofs(long id);
+ @Select("select * from pw_after_sale where order_id=#{id} order by id desc limit 1") Map<String,Object> latestAfterSale(long id);
+ @Select("<script>select a.*,o.order_no,o.order_status,u.username customer_name,p.nickname player_name from pw_after_sale a join pw_order o on o.id=a.order_id join sys_user u on u.id=a.customer_id left join pw_player p on p.id=o.assigned_player_id where 1=1<if test='status != null and status != &quot;&quot;'> and a.after_sale_status=#{status}</if> order by a.id desc</script>") IPage<Map<String,Object>> afterSales(Page<Map<String,Object>> page,@Param("status")String status);
+ @Select("select a.*,o.order_no,o.order_status,u.username customer_name,p.nickname player_name from pw_after_sale a join pw_order o on o.id=a.order_id join sys_user u on u.id=a.customer_id left join pw_player p on p.id=o.assigned_player_id where a.id=#{id}") Map<String,Object> afterSaleDetail(long id);
+ @Select("select proof_url from pw_after_sale_proof where after_sale_id=#{id} order by sort_no") List<String> afterSaleProofs(long id);
+ @Select("select * from pw_after_sale_log where after_sale_id=#{id} order by id") List<Map<String,Object>> afterSaleLogs(long id);
+ @Select("select count(*) from pw_order where assigned_player_id=#{id} and order_status in('ASSIGNED','IN_SERVICE','PENDING_CONFIRM','WAIT_CUSTOMER_CONFIRM','AFTER_SALE')") long activePlayerOrders(long id);
+}

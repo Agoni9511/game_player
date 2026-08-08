@@ -1,0 +1,46 @@
+{
+  "pages": [
+    { "path": "pages/home/index", "style": { "navigationBarTitleText": "凌竞电竞" } },
+    { "path": "pages/customer/orders", "style": { "navigationBarTitleText": "我的订单" } },
+    { "path": "pages/profile/index", "style": { "navigationBarTitleText": "我的" } },
+    { "path": "pages/discover/index", "style": { "navigationBarTitleText": "快捷服务" } },
+    { "path": "pages/messages/index", "style": { "navigationBarTitleText": "消息" } },
+    { "path": "pages/auth/login", "style": { "navigationStyle": "custom", "backgroundColor": "#eee8d7" } }
+  ],
+  "subPackages": [
+    {
+      "root": "subpackages/customer",
+      "name": "customerBusiness",
+      "pages": [
+        { "path": "product-detail", "style": { "navigationBarTitleText": "服务详情" } },
+        { "path": "confirm-order", "style": { "navigationBarTitleText": "确认订单" } },
+        { "path": "order-detail", "style": { "navigationBarTitleText": "订单详情" } },
+        { "path": "order-list", "style": { "navigationBarTitleText": "订单分类" } },
+        { "path": "after-sale", "style": { "navigationBarTitleText": "申请售后" } }
+      ]
+    },
+    {
+      "root": "subpackages/player",
+      "name": "playerBusiness",
+      "pages": [
+        { "path": "workbench", "style": { "navigationBarTitleText": "接单工作台" } },
+        { "path": "dispatches", "style": { "navigationBarTitleText": "待响应派单" } },
+        { "path": "orders", "style": { "navigationBarTitleText": "服务订单" } },
+        { "path": "order-detail", "style": { "navigationBarTitleText": "服务详情" } },
+        { "path": "submit", "style": { "navigationBarTitleText": "提交完成" } }
+      ]
+    }
+  ],
+  "tabBar": {
+    "custom": true,
+    "color": "#7e8982", "selectedColor": "#315c50", "backgroundColor": "#fffaf0", "borderStyle": "white",
+    "list": [
+      { "pagePath": "pages/home/index", "text": "首页" },
+      { "pagePath": "pages/customer/orders", "text": "订单" },
+      { "pagePath": "pages/discover/index", "text": "找陪玩" },
+      { "pagePath": "pages/messages/index", "text": "消息" },
+      { "pagePath": "pages/profile/index", "text": "我的" }
+    ]
+  },
+  "globalStyle": { "navigationBarTextStyle": "black", "navigationBarBackgroundColor": "#f7f1df", "backgroundColor": "#eee9da" }
+}

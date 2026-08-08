@@ -1,0 +1,2 @@
+package com.peiwan.platform.persistence.entity;import com.baomidou.mybatisplus.annotation.*;import java.time.LocalDateTime;
+@TableName("pw_order_game_profile") public class OrderGameProfileEntity{@TableId(type=IdType.AUTO)public Long id;public Long orderId;public Long gameId;public String gameName;public String gameAccount;public String gameNickname;public String serverName;public String rankName;public String extraRequirement;public LocalDateTime createdAt;}

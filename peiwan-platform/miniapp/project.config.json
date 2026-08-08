@@ -1,0 +1,14 @@
+{
+  "description": "陪玩微信小程序开发配置",
+  "miniprogramRoot": "dist/dev/mp-weixin/",
+  "compileType": "miniprogram",
+  "appid": "touristappid",
+  "projectname": "凌竞电竞陪玩服务",
+  "setting": {
+    "urlCheck": false,
+    "es6": true,
+    "postcss": false,
+    "minified": false,
+    "newFeature": true
+  }
+}

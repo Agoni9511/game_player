@@ -1,0 +1,2 @@
+package com.peiwan.platform.persistence.entity;import com.baomidou.mybatisplus.annotation.*;import java.time.LocalDateTime;
+@TableName("pw_product_category") public class ProductCategoryEntity{@TableId(type=IdType.AUTO)public Long id;public Long gameId;public Long parentId;public String categoryCode;public String categoryName;public String iconUrl;public Integer sortNo;public Boolean enabled;public LocalDateTime createdAt;public LocalDateTime updatedAt;}

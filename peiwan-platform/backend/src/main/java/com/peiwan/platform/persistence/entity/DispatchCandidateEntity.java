@@ -1,0 +1,2 @@
+package com.peiwan.platform.persistence.entity;import com.baomidou.mybatisplus.annotation.*;import java.math.BigDecimal;import java.time.LocalDateTime;
+@TableName("pw_dispatch_candidate") public class DispatchCandidateEntity{@TableId(type=IdType.AUTO)public Long id;public Long taskId;public Long playerId;public BigDecimal matchScore;public Integer activeOrderCount;public String candidateStatus;public Boolean notified;public LocalDateTime respondedAt;public String rejectReason;public LocalDateTime createdAt;}

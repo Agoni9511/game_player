@@ -1,0 +1,1 @@
+package com.peiwan.platform.persistence.mapper;import com.baomidou.mybatisplus.core.mapper.BaseMapper;import com.peiwan.platform.persistence.entity.SystemMenuEntity;public interface SystemMenuMapper extends BaseMapper<SystemMenuEntity>{}

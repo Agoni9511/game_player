@@ -1,0 +1,2 @@
+package com.peiwan.platform.persistence.entity;import com.baomidou.mybatisplus.annotation.*;import java.time.LocalDateTime;
+@TableName("pw_dispatch_action_log") public class DispatchActionLogEntity{@TableId(type=IdType.AUTO)public Long id;public Long taskId;public Long orderId;public Long playerId;public String actionType;public String fromStatus;public String toStatus;public Long operatorId;public String reason;public LocalDateTime createdAt;}
