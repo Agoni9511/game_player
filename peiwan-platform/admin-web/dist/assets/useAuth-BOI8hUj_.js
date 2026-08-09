@@ -1,0 +1,1 @@
+import{D as a,de as s,s as t,x as u}from"./index-DAEICR4B.js";const e=u(),n=()=>{var u,n;const o=a(),{isFrontendMode:r}=s(),{info:i}=t(e),l=null!=(n=null==(u=i.value)?void 0:u.buttons)?n:[],d=Array.isArray(o.meta.authList)?o.meta.authList:[];return{hasAuth:a=>r.value?l.includes(a):d.some(s=>(null==s?void 0:s.authMark)===a)}};export{n as u};

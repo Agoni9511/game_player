@@ -1,0 +1,22 @@
+🚀 API_URL = /
+🚀 VERSION = 3.0.2
+
+  [32m[1mVITE[22m v7.1.7[39m  [2mready in [0m[1m15763[22m[2m[0m ms[22m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m3006[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://192.168.56.1:[1m3006[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://192.168.110.217:[1m3006[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://172.31.208.1:[1m3006[22m/[39m
+  ➜  Vue DevTools: Open http://localhost:3006/__devtools__/ as a separate window
+  ➜  Vue DevTools: Press Alt(⌥)+Shift(⇧)+D in App to toggle the Vue DevTools
+[2m[32m  ➜[39m[22m[2m  press [22m[1mh + enter[22m[2m to show help[22m
+[2m15:32:55[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/assets/styles/core/tailwind.css, /src/views/customer/orders/index.vue, /src/components/business/local-file-upload.vue[22m
+[2m15:32:55[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/views/player/settlement/index.vue[22m
+[2m15:33:46[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/assets/styles/core/tailwind.css, /src/views/customer/orders/index.vue, /src/components/business/local-file-upload.vue, /src/views/player/settlement/index.vue, /src/views/player/workbench/index.vue[22m
+[2m15:39:26[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/assets/styles/core/tailwind.css, /src/views/customer/orders/index.vue, /src/components/business/local-file-upload.vue, /src/views/player/settlement/index.vue, /src/views/player/workbench/index.vue[22m
+[2m15:45:09[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/core/layouts/art-menus/art-sidebar-menu/index.vue?vue&type=style&index=0&scoped=40201744&lang.scss[22m
+[2m15:45:09[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/assets/styles/core/tailwind.css, /src/views/customer/orders/index.vue, /src/components/business/local-file-upload.vue, /src/views/player/settlement/index.vue, /src/views/player/workbench/index.vue[22m
+[2m15:45:09[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/views/customer/wallet/index.vue[22m
+[2m15:54:52[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/system/menu/index.vue, /src/assets/styles/core/tailwind.css[22m
+[2m15:57:31[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/system/login-log/index.vue, /src/assets/styles/core/tailwind.css[22m
+[2m15:57:31[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/system/operation-log/index.vue, /src/assets/styles/core/tailwind.css[22m
