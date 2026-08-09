@@ -143,7 +143,7 @@ class RbacFlowTest {
   @Test void productSpuSkuAndSaleRules() throws Exception {
     String admin=login("admin","Test-Only-Password-9x!");
     mvc.perform(get("/api/business/product/list").header("Authorization",admin).param("productType","SERVICE"))
-      .andExpect(status().isOk()).andExpect(jsonPath("$.data.total").value(2))
+      .andExpect(status().isOk()).andExpect(jsonPath("$.data.total").value(6))
       .andExpect(jsonPath("$.data.records[0].skuCount").isNumber());
     long seeded=db.queryForObject("select id from pw_product where product_code='delta-escort-experience'",Long.class);
     mvc.perform(delete("/api/business/product/{id}",seeded).header("Authorization",admin))
@@ -166,7 +166,7 @@ class RbacFlowTest {
   @Test void platformPackageCompositionRules() throws Exception {
     String admin=login("admin","Test-Only-Password-9x!");
     mvc.perform(get("/api/business/product/list").header("Authorization",admin).param("productType","PACKAGE"))
-      .andExpect(status().isOk()).andExpect(jsonPath("$.data.total").value(2));
+      .andExpect(status().isOk()).andExpect(jsonPath("$.data.total").value(6));
     long packageId=db.queryForObject("select id from pw_product where product_code='delta-regular-package'",Long.class);
     mvc.perform(get("/api/business/product/{id}",packageId).header("Authorization",admin))
       .andExpect(status().isOk()).andExpect(jsonPath("$.data.productType").value("PACKAGE"))

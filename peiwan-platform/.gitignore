@@ -1,2 +1,12 @@
 .tools/
+.codex-logs/
+admin-web/node_modules/
+admin-web/dist/
+admin-web/package-lock.json
+admin-web/src/types/import/auto-import.json
+backend/data/
+backend/target/
+miniapp/.vscode/
+miniapp/project.private.config.json
+tmp-maven-settings.xml
 

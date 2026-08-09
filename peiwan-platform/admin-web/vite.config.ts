@@ -79,7 +79,7 @@ export default ({ mode }: { mode: string }) => {
         resolvers: [ElementPlusResolver()],
         eslintrc: {
           enabled: true,
-          filepath: './.auto-import.json',
+          filepath: './src/types/import/auto-import.json',
           globalsPropValue: true
         }
       }),

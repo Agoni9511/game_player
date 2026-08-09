@@ -32,12 +32,21 @@ public class CustomerCatalogController {
                                  @RequestParam(defaultValue = "20") int size,
                                  @RequestParam(required = false) String keyword,
                                  @RequestParam(required = false) Long gameId,
-                                 @RequestParam(required = false) Long categoryId) {
-    return ApiResponse.ok(products.list(current, size, keyword, gameId, categoryId, "ON_SALE", null));
+                                 @RequestParam(required = false) Long categoryId,
+                                 @RequestParam(required = false) String productType) {
+    return ApiResponse.ok(products.list(current, size, keyword, gameId, categoryId, "ON_SALE", productType));
   }
 
   @GetMapping("/products/{id}")
   public ApiResponse<?> product(@PathVariable long id) {
     return ApiResponse.ok(products.customerDetail(id));
+  }
+
+  @GetMapping("/players")
+  public ApiResponse<?> players(@RequestParam(defaultValue = "1") int current,
+                                @RequestParam(defaultValue = "50") int size,
+                                @RequestParam(required = false) String keyword,
+                                @RequestParam(required = false) String workStatus) {
+    return ApiResponse.ok(players.customerPlayers(current, size, keyword, workStatus));
   }
 }

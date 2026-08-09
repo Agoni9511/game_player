@@ -8,6 +8,10 @@ export const useAppModeStore = defineStore('app-mode', {
   state: () => ({ mode: (uni.getStorageSync(MODE_KEY) || 'customer') as AppMode }),
   getters: { isPlayerMode: state => state.mode === 'player' },
   actions: {
+    ensureAllowed() {
+      const auth = useAuthStore()
+      if (this.mode === 'player' && !auth.isPlayer) this.switchMode('customer')
+    },
     switchMode(mode: AppMode) {
       const auth = useAuthStore()
       if (mode === 'player' && !auth.isPlayer) throw new Error('当前账号没有陪玩师身份')

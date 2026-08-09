@@ -1,7 +1,12 @@
-<view class="tab-shell">
-  <view wx:for="{{list}}" wx:key="pagePath" class="tab-item {{item.center?'center-item':''}} {{selected===index?'selected':''}}" data-index="{{index}}" bindtap="switchTab">
-    <view wx:if="{{item.center}}" class="center-circle"><image src="{{item.iconPath}}"/></view>
-    <image wx:else src="{{selected===index?item.selectedIconPath:item.iconPath}}"/>
-    <text>{{item.text}}</text>
+<view wx:if="{{!hidden}}" class="tab-shell">
+  <view wx:for="{{list}}" wx:key="pagePath" class="tab-item {{item.center?'center-item':''}} {{selected == index?'selected':''}}" data-index="{{index}}" bindtap="switchTab">
+    <view wx:if="{{item.center}}" class="center-circle">
+      <image class="center-icon" src="{{item.iconPath}}"/>
+      <text class="center-label">{{item.text}}</text>
+    </view>
+    <block wx:else>
+      <image class="tab-icon" src="{{selected == index ? item.selectedIconPath : item.iconPath}}"/>
+      <text class="tab-label">{{item.text}}</text>
+    </block>
   </view>
 </view>

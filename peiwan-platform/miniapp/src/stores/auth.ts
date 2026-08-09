@@ -23,6 +23,13 @@ export const useAuthStore = defineStore('auth', {
       await this.loadUser()
     },
     async loadUser() { this.user = await getUserInfo() },
-    signOut() { tokenStorage.clear(); this.token = ''; this.user = null; uni.reLaunch({ url: '/pages/auth/login' }) },
+    signOut() {
+      tokenStorage.clear()
+      uni.setStorageSync('peiwan_app_mode', 'customer')
+      uni.removeStorageSync('peiwan_pending_tab')
+      this.token = ''
+      this.user = null
+      uni.reLaunch({ url: '/pages/auth/login' })
+    },
   },
 })

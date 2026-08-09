@@ -9,6 +9,17 @@ export const tokenStorage = {
   clear: () => uni.removeStorageSync(TOKEN_KEY),
 }
 
+export function assetUrl(value: unknown): string {
+  const url = String(value || '').trim()
+  if (!url || url.startsWith('data:') || url.startsWith('wxfile:') || url.startsWith('blob:')) return url
+  const demoProduct = url.match(/\/uploads\/demo\/products\/([^/?]+)\.png(?:[?#].*)?$/i)
+  if (demoProduct) return `/static/products/${demoProduct[1]}.jpg`
+  const demoPlayer = url.match(/\/uploads\/demo\/players\/([^/?]+)\.png(?:[?#].*)?$/i)
+  if (demoPlayer) return `/static/players/${demoPlayer[1]}.jpg`
+  if (url.startsWith('/')) return `${API_BASE_URL}${url}`
+  return url.replace(/^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?/i, API_BASE_URL)
+}
+
 export function request<T>(options: UniApp.RequestOptions): Promise<T> {
   return new Promise((resolve, reject) => {
     const token = tokenStorage.get()

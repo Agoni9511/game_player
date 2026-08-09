@@ -22,20 +22,20 @@
     <view class="login-panel">
       <view class="panel-head">
         <view>
-          <view class="panel-title">欢迎回来</view>
-          <view class="panel-subtitle">登录后继续你的游戏旅程</view>
+          <view class="panel-title">账号登录</view>
+          <view class="panel-subtitle">输入账号密码，进入凌竞电竞</view>
         </view>
-        <view class="badge">开发联调</view>
+        <view class="badge">安全登录</view>
       </view>
 
       <view class="field" :class="{ focused: focusField === 'account' }">
-        <view class="field-icon">●</view>
+        <view class="field-icon">账号</view>
         <input v-model.trim="userName" placeholder="请输入账号" confirm-type="next" @focus="focusField='account'" @blur="focusField=''" />
         <view v-if="userName" class="clear" @click="userName=''">×</view>
       </view>
 
       <view class="field" :class="{ focused: focusField === 'password' }">
-        <view class="field-icon key">◆</view>
+        <view class="field-icon">密码</view>
         <input v-model="password" :password="!showPassword" placeholder="请输入密码" confirm-type="done" @focus="focusField='password'" @blur="focusField=''" @confirm="submit" />
         <view class="visibility" @click="showPassword=!showPassword">{{ showPassword ? '隐藏' : '显示' }}</view>
       </view>
@@ -51,15 +51,17 @@
       <view class="login-button" :class="{ disabled: loading }" @click="submit">
         <view v-if="loading" class="spinner" />
         <text>{{ loading ? '正在登录...' : '进入凌竞电竞' }}</text>
-        <text v-if="!loading" class="arrow">→</text>
       </view>
 
-      <view class="role-tip">
-        <view class="role-icon">♟</view>
-        <view>
-          <view class="role-title">一套账号，双重身份</view>
-          <view class="role-text">顾客查看服务订单 · 陪玩师进入接单工作台</view>
-        </view>
+      <view class="login-divider">
+        <view />
+        <text>其他登录方式</text>
+        <view />
+      </view>
+
+      <view class="wechat-button" :class="{ disabled: wechatLoading }" @click="wechatSignIn">
+        <view class="wechat-mark">微</view>
+        <text>{{ wechatLoading ? '正在唤起微信...' : '微信快捷登录' }}</text>
       </view>
 
       <view class="agreement">
@@ -78,12 +80,15 @@
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { useAuthStore } from '@/stores/auth'
+import { useAppModeStore } from '@/stores/app-mode'
 
 const ACCOUNT_KEY = 'peiwan_remembered_account'
 const auth = useAuthStore()
+const mode = useAppModeStore()
 const userName = ref('')
 const password = ref('')
 const loading = ref(false)
+const wechatLoading = ref(false)
 const showPassword = ref(false)
 const rememberAccount = ref(true)
 const focusField = ref('')
@@ -99,6 +104,7 @@ async function submit() {
   loading.value = true
   try {
     await auth.signIn(userName.value, password.value)
+    mode.ensureAllowed()
     if (rememberAccount.value) uni.setStorageSync(ACCOUNT_KEY, userName.value)
     else uni.removeStorageSync(ACCOUNT_KEY)
     uni.showToast({ title: '登录成功', icon: 'success' })
@@ -106,6 +112,28 @@ async function submit() {
   } finally {
     loading.value = false
   }
+}
+
+function wechatSignIn() {
+  if (wechatLoading.value) return
+  wechatLoading.value = true
+  uni.login({
+    provider: 'weixin',
+    success: ({ code }) => {
+      if (!code) {
+        uni.showToast({ title: '未获取到微信授权信息', icon: 'none' })
+        return
+      }
+      uni.showModal({
+        title: '微信快捷登录',
+        content: '微信授权已完成。请配置小程序 AppID、AppSecret 和后台微信登录接口后启用正式登录。',
+        confirmText: '我知道了',
+        showCancel: false,
+      })
+    },
+    fail: () => uni.showToast({ title: '请先配置微信小程序 AppID', icon: 'none' }),
+    complete: () => { wechatLoading.value = false },
+  })
 }
 
 function forgotPassword() {
@@ -163,12 +191,85 @@ function showPending(name: string) {
 .version { position: relative; z-index: 1; margin-top: 32rpx; color: #a0a4b0; font-size: 20rpx; text-align: center; }
 </style>
 <style scoped lang="scss">
-.login-page{background-color:#eee8d7;background-image:linear-gradient(rgba(243,238,221,.74),rgba(243,238,221,.88)),url('/static/ink-tactical-bg.jpg');background-size:cover;background-position:center top}
-.glow{display:none}.hero{color:#17251f;text-shadow:0 1rpx rgba(255,255,255,.65)}
-.logo{border:1rpx solid rgba(43,72,60,.22);box-shadow:0 10rpx 26rpx rgba(45,70,59,.14)}
-.brand-name,.panel-title{font-family:STKaiti,KaiTi,serif;color:#17251f}.brand-en,.feature-row{color:#66756d}.slogan text{color:#315c50}
-.login-panel{background:rgba(255,252,241,.92);border:1rpx solid rgba(54,79,68,.2);border-radius:10rpx 32rpx 10rpx 32rpx;box-shadow:0 24rpx 60rpx rgba(44,60,50,.14)}
-.badge{color:#963d31;background:#f1e3d9}.field{background:rgba(233,233,220,.78);border-radius:8rpx 18rpx 8rpx 18rpx}.field.focused{border-color:#557869;box-shadow:0 0 0 7rpx rgba(63,101,86,.08)}
-.field-icon,.visibility,.forgot,.agreement text{color:#315c50}.checkbox.checked{border-color:#315c50;background:#315c50}.login-button{border-radius:8rpx 20rpx 8rpx 20rpx;background:linear-gradient(105deg,#416b5c,#274c42);box-shadow:0 15rpx 30rpx rgba(39,76,66,.25)}
-.role-tip{background:rgba(209,221,207,.52)}.role-icon{background:#963d31}.version{color:#68776f}
+.login-page {
+  padding: 88rpx 34rpx 40rpx;
+  background-color: #eee8d7;
+  background-image: radial-gradient(circle at 88% 2%, rgba(91, 126, 108, .17), transparent 34%), linear-gradient(180deg, rgba(243, 238, 221, .82), rgba(243, 238, 221, .96));
+}
+
+.glow { display: none; }
+.hero { padding: 0 18rpx 52rpx; color: #17251f; text-shadow: 0 1rpx rgba(255, 255, 255, .65); }
+.logo { border: 1rpx solid rgba(43, 72, 60, .22); border-radius: 24rpx; box-shadow: 0 10rpx 26rpx rgba(45, 70, 59, .14); }
+.brand-name, .panel-title { font-family: STKaiti, KaiTi, serif; color: #17251f; }
+.brand-en, .feature-row { color: #66756d; }
+.slogan text { color: #315c50; }
+
+.login-panel {
+  padding: 40rpx 32rpx 34rpx;
+  border: 1rpx solid rgba(54, 79, 68, .18);
+  border-radius: 34rpx;
+  background: rgba(255, 252, 241, .94);
+  box-shadow: 0 24rpx 60rpx rgba(44, 60, 50, .14);
+}
+.panel-head { align-items: center; margin-bottom: 34rpx; }
+.panel-title { font-size: 36rpx; }
+.panel-subtitle { margin-top: 8rpx; color: #7c8982; }
+.badge { padding: 9rpx 17rpx; border: 1rpx solid rgba(150, 61, 49, .12); border-radius: 24rpx; color: #963d31; background: #f1e3d9; }
+
+.field {
+  height: 96rpx;
+  margin-bottom: 20rpx;
+  padding: 0 22rpx;
+  border-radius: 24rpx;
+  background: rgba(233, 233, 220, .82);
+}
+.field.focused { border-color: #557869; background: rgba(255, 255, 250, .96); box-shadow: 0 0 0 7rpx rgba(63, 101, 86, .08); }
+.field-icon {
+  width: 72rpx;
+  margin-right: 20rpx;
+  border-right: 1rpx solid rgba(49, 92, 80, .18);
+  color: #315c50;
+  font-size: 22rpx;
+  font-weight: 700;
+  line-height: 34rpx;
+}
+.field input { font-size: 27rpx; }
+.clear { width: 44rpx; height: 44rpx; border-radius: 50%; color: #89958e; line-height: 40rpx; text-align: center; }
+.visibility { padding: 10rpx 16rpx; border-radius: 20rpx; color: #315c50; background: rgba(49, 92, 80, .08); font-size: 22rpx; }
+
+.options { margin: 6rpx 4rpx 30rpx; }
+.checkbox { border-radius: 9rpx; }
+.checkbox.checked { border-color: #315c50; background: #315c50; }
+.forgot, .agreement text { color: #315c50; }
+
+.login-button {
+  height: 98rpx;
+  border-radius: 50rpx;
+  background: linear-gradient(105deg, #416b5c, #274c42);
+  box-shadow: 0 15rpx 30rpx rgba(39, 76, 66, .25);
+  transition: transform .15s, box-shadow .15s;
+}
+.login-button:active { transform: scale(.985); box-shadow: 0 9rpx 20rpx rgba(39, 76, 66, .22); }
+
+.login-divider { margin: 30rpx 8rpx 24rpx; display: flex; align-items: center; gap: 20rpx; color: #929d97; font-size: 20rpx; }
+.login-divider view { flex: 1; height: 1rpx; background: rgba(49, 92, 80, .15); }
+.wechat-button {
+  height: 90rpx;
+  border: 2rpx solid rgba(49, 92, 80, .3);
+  border-radius: 46rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16rpx;
+  color: #315c50;
+  background: rgba(255, 255, 250, .72);
+  font-size: 28rpx;
+  font-weight: 700;
+  transition: transform .15s, background-color .15s;
+}
+.wechat-button:active { transform: scale(.985); background: rgba(224, 234, 220, .8); }
+.wechat-button.disabled { opacity: .65; }
+.wechat-mark { width: 46rpx; height: 46rpx; border-radius: 50%; color: #fffaf0; background: #315c50; font-size: 22rpx; line-height: 46rpx; text-align: center; font-weight: 700; }
+.agreement { margin-top: 26rpx; }
+.version { color: #68776f; }
 </style>

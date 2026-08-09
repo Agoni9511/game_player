@@ -14,7 +14,11 @@ function copyWechatCustomTabBar(outputKind: 'dev' | 'build'): Plugin {
   }
   return {
     name: 'copy-wechat-custom-tab-bar',
+    buildStart() {
+      copy()
+    },
     configureServer(server) {
+      copy()
       server.httpServer?.once('listening', () => setTimeout(copy, 1200))
       server.watcher.add(resolve(__dirname, 'custom-tab-bar/*'))
     },

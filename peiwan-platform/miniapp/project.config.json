@@ -2,13 +2,44 @@
   "description": "陪玩微信小程序开发配置",
   "miniprogramRoot": "dist/dev/mp-weixin/",
   "compileType": "miniprogram",
-  "appid": "touristappid",
+  "appid": "wx7aa8f262c4970322",
   "projectname": "凌竞电竞陪玩服务",
   "setting": {
     "urlCheck": false,
     "es6": true,
     "postcss": false,
     "minified": false,
-    "newFeature": true
-  }
+    "newFeature": true,
+    "babelSetting": {
+      "ignore": [],
+      "disablePlugins": [],
+      "outputPath": ""
+    },
+    "compileWorklet": false,
+    "uglifyFileName": false,
+    "uploadWithSourceMap": true,
+    "enhance": false,
+    "packNpmManually": false,
+    "packNpmRelationList": [],
+    "minifyWXSS": true,
+    "minifyWXML": true,
+    "localPlugins": false,
+    "disableUseStrict": false,
+    "useCompilerPlugins": false,
+    "condition": false,
+    "swc": false,
+    "disableSWC": true
+  },
+  "srcMiniprogramRoot": "dist/dev/mp-weixin/",
+  "packOptions": {
+    "ignore": [],
+    "include": []
+  },
+  "condition": {},
+  "editorSetting": {
+    "tabIndent": "insertSpaces",
+    "tabSize": 2
+  },
+  "libVersion": "3.16.2",
+  "simulatorPluginLibVersion": {}
 }
