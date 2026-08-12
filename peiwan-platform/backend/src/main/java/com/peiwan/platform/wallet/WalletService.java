@@ -8,6 +8,8 @@ import com.peiwan.platform.persistence.entity.RechargePlanEntity;
 import com.peiwan.platform.persistence.entity.UserMemberEntity;
 import com.peiwan.platform.persistence.entity.WalletAccountEntity;
 import com.peiwan.platform.persistence.entity.WalletTransactionEntity;
+import com.peiwan.platform.persistence.entity.TradeOrderEntity;
+import com.peiwan.platform.persistence.entity.OrderPaymentEntity;
 import com.peiwan.platform.persistence.mapper.MemberLevelMapper;
 import com.peiwan.platform.persistence.mapper.RechargeOrderMapper;
 import com.peiwan.platform.persistence.mapper.RechargePlanMapper;
@@ -15,6 +17,8 @@ import com.peiwan.platform.persistence.mapper.UserMemberMapper;
 import com.peiwan.platform.persistence.mapper.WalletAccountMapper;
 import com.peiwan.platform.persistence.mapper.WalletDataMapper;
 import com.peiwan.platform.persistence.mapper.WalletTransactionMapper;
+import com.peiwan.platform.persistence.mapper.TradeOrderMapper;
+import com.peiwan.platform.persistence.mapper.OrderPaymentMapper;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,6 +42,8 @@ public class WalletService {
   private final UserMemberMapper members;
   private final MemberLevelMapper memberLevels;
   private final WalletDataMapper data;
+  private final TradeOrderMapper tradeOrders;
+  private final OrderPaymentMapper tradePayments;
 
   public WalletService(
     WalletAccountMapper wallets,
@@ -46,7 +52,9 @@ public class WalletService {
     WalletTransactionMapper transactions,
     UserMemberMapper members,
     MemberLevelMapper memberLevels,
-    WalletDataMapper data
+    WalletDataMapper data,
+    TradeOrderMapper tradeOrders,
+    OrderPaymentMapper tradePayments
   ) {
     this.wallets = wallets;
     this.plans = plans;
@@ -55,6 +63,8 @@ public class WalletService {
     this.members = members;
     this.memberLevels = memberLevels;
     this.data = data;
+    this.tradeOrders = tradeOrders;
+    this.tradePayments = tradePayments;
   }
 
   public Map<String, Object> summary(long uid) {
@@ -110,6 +120,24 @@ public class WalletService {
       UUID.randomUUID().toString().replace("-", "").substring(0, 6).toUpperCase(Locale.ROOT);
 
     var order = new RechargeOrderEntity();
+    var trade = new TradeOrderEntity();
+    trade.orderNo = rechargeNo;
+    trade.customerId = uid;
+    trade.businessType = "WALLET_RECHARGE";
+    trade.tradeStatus = "COMPLETED";
+    trade.title = plan.planName;
+    trade.totalAmount = plan.rechargeAmount;
+    trade.discountAmount = BigDecimal.ZERO;
+    trade.payableAmount = plan.rechargeAmount;
+    trade.paidAmount = plan.rechargeAmount;
+    trade.refundedAmount = BigDecimal.ZERO;
+    trade.paymentStatus = "PAID";
+    trade.refundStatus = "NONE";
+    trade.paidAt = LocalDateTime.now();
+    trade.completedAt = trade.paidAt;
+    trade.createdBy = uid;
+    tradeOrders.insert(trade);
+    order.tradeOrderId = trade.id;
     order.rechargeNo = rechargeNo;
     order.requestNo = requestNo;
     order.userId = uid;
@@ -119,6 +147,21 @@ public class WalletService {
     order.rechargeStatus = "PAID";
     order.paidAt = LocalDateTime.now();
     recharges.insert(order);
+
+    var payment = new OrderPaymentEntity();
+    payment.paymentNo = "RCP" + rechargeNo;
+    payment.requestNo = requestNo;
+    payment.orderId = trade.id;
+    payment.userId = uid;
+    payment.paymentChannel = "MOCK_RECHARGE";
+    payment.paymentStatus = "PAID";
+    payment.payableAmount = plan.rechargeAmount;
+    payment.cashAmount = plan.rechargeAmount;
+    payment.bonusAmount = BigDecimal.ZERO;
+    payment.refundedCashAmount = BigDecimal.ZERO;
+    payment.refundedBonusAmount = BigDecimal.ZERO;
+    payment.paidAt = order.paidAt;
+    tradePayments.insert(payment);
 
     data.creditRecharge(accountId, plan.rechargeAmount, plan.bonusAmount);
     addTransaction(accountId, uid, "CASH", rechargeNo, plan.rechargeAmount, beforeCash, beforeCash.add(plan.rechargeAmount), "模拟充值");

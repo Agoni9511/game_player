@@ -14,6 +14,8 @@ export const getCustomerOrderPayment = (id: number) => request<RecordData>({ url
 export const confirmOrder = (id: number) => request<void>({ url: `/api/customer/orders/${id}/confirm`, method: 'PUT' })
 export const cancelCustomerOrder = (id: number, reason = '用户主动取消') => request<void>({ url: `/api/customer/orders/${id}/cancel`, method: 'PUT', data: { reason } })
 export const createAfterSale = (id: number, data: { reasonType: string; description: string; proofUrls: string[] }) => request<{ id: number }>({ url: `/api/customer/orders/${id}/after-sale`, method: 'POST', data })
+export const createCustomerServiceException = (id: number, data: { requestType: 'TRANSFER' | 'ABORT'; sourceOrderMemberId: number; targetPlayerId?: number; reason: string; proofUrls?: string[] }) => request<{ id: number }>({ url: `/api/customer/orders/${id}/service-exceptions`, method: 'POST', data })
+export const getTransferTargets = (id: number, sourceOrderMemberId?: number) => request<RecordData[]>({ url: `/api/service-orders/${id}/transfer-targets`, method: 'GET', data: { sourceOrderMemberId } })
 export const getCatalogGames = () => request<RecordData[]>({ url: '/api/customer/catalog/games', method: 'GET' })
 export const getCatalogCategories = () => request<RecordData[]>({ url: '/api/customer/catalog/categories', method: 'GET' })
 export const getCatalogPlayerLevels = (gameId?: number) => request<RecordData[]>({ url: '/api/customer/catalog/player-levels', method: 'GET', data: { gameId } })

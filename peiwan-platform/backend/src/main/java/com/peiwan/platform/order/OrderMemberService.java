@@ -26,7 +26,6 @@ public class OrderMemberService {
   if(before>=required)throw new IllegalArgumentException("订单接单人数已满");
   var member=new OrderMemberEntity();member.orderId=orderId;member.playerId=playerId;member.memberStatus="ACCEPTED";member.joinSource=source;member.dispatchTaskId=dispatchTaskId;member.joinedAt=LocalDateTime.now();
   try{members.insert(member);}catch(DuplicateKeyException e){throw new IllegalArgumentException("该陪玩师已经接过此订单");}
-  data.keepLegacyFirstMember(orderId,playerId);
   int current=before+1;boolean full=current>=required;
   if(full&&data.fillOrder(orderId)==0)throw new IllegalArgumentException("订单状态已变化，接单失败");
   return new JoinResult(current,required,full);

@@ -77,6 +77,7 @@
       <view class="action-space" />
       <view v-if="showActions" class="action-bar">
         <button v-if="canCancel" class="secondary" @click="cancelOrder">取消订单</button>
+        <button v-if="detail.orderStatus === 'IN_SERVICE'" class="secondary" @click="serviceException">转单/炸单</button>
         <button v-if="canAfterSale" class="secondary" @click="afterSale">申请售后</button>
         <button v-if="detail.orderStatus === 'WAIT_CUSTOMER_CONFIRM'" class="primary action-primary" @click="confirm">确认服务完成</button>
         <button v-if="detail.orderStatus === 'PENDING_PAYMENT'" class="primary action-primary" :disabled="paying" @click="pay">{{ paying ? '支付处理中...' : `${paymentMethod === 'MOCK_WECHAT' ? '模拟支付' : '钱包支付'} ¥${money(detail.payableAmount)}` }}</button>
@@ -119,7 +120,7 @@ const members = computed<RecordData[]>(() => (detail.value.members as RecordData
 const statusInfo = computed(() => statusMap[String(detail.value.orderStatus)] || { label: '订单进行中', desc: '服务状态正在更新' })
 const canCancel = computed(() => ['PENDING_PAYMENT', 'WAIT_ASSIGN'].includes(String(detail.value.orderStatus)))
 const canAfterSale = computed(() => ['PENDING_CONFIRM', 'WAIT_CUSTOMER_CONFIRM'].includes(String(detail.value.orderStatus)))
-const showActions = computed(() => canCancel.value || canAfterSale.value || ['PENDING_PAYMENT', 'WAIT_CUSTOMER_CONFIRM'].includes(String(detail.value.orderStatus)))
+const showActions = computed(() => canCancel.value || canAfterSale.value || ['PENDING_PAYMENT', 'IN_SERVICE', 'WAIT_CUSTOMER_CONFIRM'].includes(String(detail.value.orderStatus)))
 const walletAccount = computed<RecordData>(() => (wallet.value.account as RecordData | undefined) || {})
 const walletBalance = computed(() => Number(walletAccount.value.totalBalance || 0))
 const payableAmount = computed(() => Number(detail.value.payableAmount || 0))
@@ -194,6 +195,7 @@ async function pay() {
   uni.showToast({ title: '支付成功', icon: 'success' })
 }
 function afterSale() { uni.navigateTo({ url: `/subpackages/customer/after-sale?id=${id.value}` }) }
+function serviceException() { uni.navigateTo({ url: `/subpackages/customer/service-exception?id=${id.value}` }) }
 function text(value: unknown) { return value === null || value === undefined || value === '' ? '-' : String(value) }
 function money(value: unknown) { const n = Number(value || 0); return Number.isFinite(n) ? n.toFixed(2) : '0.00' }
 function formatTime(value: unknown) { return value ? String(value).replace('T', ' ').slice(0, 19) : '-' }

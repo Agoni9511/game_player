@@ -23,7 +23,8 @@
         { "path": "confirm-order", "style": { "navigationBarTitleText": "确认订单" } },
         { "path": "order-detail", "style": { "navigationBarTitleText": "订单详情" } },
         { "path": "order-list", "style": { "navigationBarTitleText": "订单分类" } },
-        { "path": "after-sale", "style": { "navigationBarTitleText": "申请售后" } }
+        { "path": "after-sale", "style": { "navigationBarTitleText": "申请售后" } },
+        { "path": "service-exception", "style": { "navigationBarTitleText": "转单 / 炸单申请" } }
       ]
     },
     {
@@ -35,7 +36,8 @@
         { "path": "orders", "style": { "navigationBarTitleText": "服务订单" } },
         { "path": "profile-edit", "style": { "navigationBarTitleText": "我的陪玩资料" } },
         { "path": "order-detail", "style": { "navigationBarTitleText": "服务详情" } },
-        { "path": "submit", "style": { "navigationBarTitleText": "提交完成" } }
+        { "path": "submit", "style": { "navigationBarTitleText": "提交完成" } },
+        { "path": "service-exception", "style": { "navigationBarTitleText": "转单 / 炸单申请" } }
       ]
     }
   ],

@@ -1,0 +1,3 @@
+package com.peiwan.platform.persistence.entity;
+import com.baomidou.mybatisplus.annotation.*;import java.math.BigDecimal;import java.time.LocalDateTime;
+@TableName("pw_service_liability") public class ServiceLiabilityEntity{@TableId(type=IdType.AUTO)public Long id;public String liabilityNo;public Long orderId;public Long exceptionRequestId;public String liabilityType;public Long rootOrderMemberId;public Long liableOrderMemberId;public Long beneficiaryOrderMemberId;public Long liablePlayerId;public Long beneficiaryPlayerId;public BigDecimal calculationBase;public BigDecimal rate;public BigDecimal amount;public String liabilityStatus;public Long determinedBy;public LocalDateTime determinedAt;public String remark;public LocalDateTime createdAt;}

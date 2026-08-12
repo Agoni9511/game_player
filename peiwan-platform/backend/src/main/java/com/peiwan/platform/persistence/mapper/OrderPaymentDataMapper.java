@@ -1,8 +1,11 @@
 package com.peiwan.platform.persistence.mapper;
 import com.peiwan.platform.persistence.entity.OrderEntity;import org.apache.ibatis.annotations.*;import java.math.BigDecimal;
 public interface OrderPaymentDataMapper{
- @Select("select * from pw_order where id=#{id} for update") OrderEntity lockOrder(long id);
+ @Select("select t.id,t.order_no,t.customer_id,t.trade_status,t.total_amount,t.payable_amount,t.paid_amount,t.customer_remark,t.cancel_reason,t.paid_at,t.completed_at,t.cancelled_at,t.created_by,t.created_at,t.updated_at,s.requested_player_id,s.requested_player_level_id,s.player_level_code,s.player_level_name,s.required_player_count,s.pricing_mode,s.price_type sku_price_type,s.base_unit_price,s.contact_name,s.contact_phone,s.service_status order_status,s.assigned_at,s.service_started_at,s.completion_submitted_at,s.customer_confirm_deadline,s.customer_confirmed_at from pw_trade_order t join pw_service_order s on s.order_id=t.id where t.id=#{id} and t.business_type='PLAYER_SERVICE' for update") OrderEntity lockOrder(long id);
  @Update("update pw_wallet_account set cash_balance=cash_balance-#{cash},bonus_balance=bonus_balance-#{bonus},version=version+1,updated_at=current_timestamp where id=#{id} and cash_balance>=#{cash} and bonus_balance>=#{bonus}") int debit(long id,BigDecimal cash,BigDecimal bonus);
  @Update("update pw_wallet_account set cash_balance=cash_balance+#{cash},bonus_balance=bonus_balance+#{bonus},version=version+1,updated_at=current_timestamp where id=#{id}") int refund(long id,BigDecimal cash,BigDecimal bonus);
- @Update("update pw_order set order_status='WAIT_ASSIGN',paid_amount=#{amount},paid_at=current_timestamp,updated_at=current_timestamp where id=#{id} and order_status='PENDING_PAYMENT'") int markPaid(long id,BigDecimal amount);
+ @Update("update pw_trade_order set payment_status='REFUNDED',refund_status='FULL',refunded_amount=#{amount},updated_at=current_timestamp where id=#{id}") int markTradeRefunded(long id,BigDecimal amount);
+ @Update("update pw_trade_order set trade_status='PROCESSING',payment_status='PAID',paid_amount=#{amount},paid_at=current_timestamp,updated_at=current_timestamp where id=#{id} and trade_status='PENDING_PAYMENT'") int markTradePaid(long id,BigDecimal amount);
+ @Update("update pw_service_order set service_status='WAIT_ASSIGN',updated_at=current_timestamp where order_id=#{id} and service_status='PENDING_PAYMENT'") int markServicePaid(long id);
+ default int markPaid(long id,BigDecimal amount){return markTradePaid(id,amount)==1&&markServicePaid(id)==1?1:0;}
 }

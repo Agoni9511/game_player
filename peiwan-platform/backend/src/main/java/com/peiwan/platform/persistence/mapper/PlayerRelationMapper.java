@@ -6,7 +6,7 @@ public interface PlayerRelationMapper{
  @Delete("delete from pw_game_position where game_id=#{id}") int deleteGamePositions(long id);
  @Select("select count(*) from pw_player_game_position where position_id=#{id}") long positionUseCount(long id);
  @Delete("delete from pw_player_tag_rel where tag_id=#{id}") int deleteTagRelations(long id);
- @Select("select count(*) from pw_order_member m join pw_order o on o.id=m.order_id where m.player_id=#{id} and m.member_status in('ACCEPTED','IN_SERVICE') and o.order_status in('WAIT_ASSIGN','ASSIGNED','IN_SERVICE','PENDING_CONFIRM','WAIT_CUSTOMER_CONFIRM','AFTER_SALE')") long activeOrderCount(long id);
+ @Select("select count(*) from pw_order_member m join pw_service_order s on s.order_id=m.order_id where m.player_id=#{id} and m.member_status in('ACCEPTED','IN_SERVICE') and s.service_status in('WAIT_ASSIGN','ASSIGNED','IN_SERVICE','PENDING_CONFIRM','WAIT_CUSTOMER_CONFIRM','AFTER_SALE')") long activeOrderCount(long id);
  @Delete("delete from pw_player_tag_rel where player_id=#{id}") int deletePlayerTags(long id);
  @Insert("insert into pw_player_tag_rel(player_id,tag_id) values(#{pid},#{tid})") int addPlayerTag(long pid,long tid);
  @Delete("delete from pw_player_game_position where player_game_id in(select id from pw_player_game where player_id=#{id})") int deletePlayerGamePositions(long id);

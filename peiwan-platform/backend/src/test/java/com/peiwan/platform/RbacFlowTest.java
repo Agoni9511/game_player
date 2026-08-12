@@ -244,7 +244,7 @@ class RbacFlowTest {
       .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
     long orderId=json.readTree(created).at("/data/id").asLong();
     assertThat(db.queryForObject("select unit_price from pw_order_item where order_id=?",java.math.BigDecimal.class,orderId)).isEqualByComparingTo(expected);
-    assertThat(db.queryForObject("select player_level_code from pw_order where id=?",String.class,orderId)).isEqualTo("PRO");
+    assertThat(db.queryForObject("select player_level_code from pw_service_order where order_id=?",String.class,orderId)).isEqualTo("PRO");
     assertThat(db.queryForObject("select pricing_rule_id from pw_order_item where order_id=?",Long.class,orderId)).isNotNull();
     fundAndPay(admin,orderId,"level-auto-dispatch");
     assertThat(db.queryForObject("select dispatch_mode from pw_dispatch_task where order_id=?",String.class,orderId)).isEqualTo("GRAB");
@@ -275,7 +275,7 @@ class RbacFlowTest {
       .content("{\"playerId\":"+winner+",\"action\":\"ACCEPT\"}"))
       .andExpect(status().isBadRequest()).andExpect(jsonPath("$.msg").value("派单任务已结束"));
     assertThat(db.queryForObject("select accepted_player_id from pw_dispatch_task where id=?",Long.class,taskId)).isEqualTo(winner);
-    assertThat(db.queryForObject("select order_status from pw_order where id=?",String.class,orderId)).isEqualTo("ASSIGNED");
+    assertThat(db.queryForObject("select service_status from pw_service_order where order_id=?",String.class,orderId)).isEqualTo("ASSIGNED");
     mvc.perform(put("/api/business/order/{id}/status",orderId).header("Authorization",admin).contentType(MediaType.APPLICATION_JSON).content("{\"status\":\"IN_SERVICE\"}")) .andExpect(status().isOk());
     mvc.perform(put("/api/business/order/{id}/status",orderId).header("Authorization",admin).contentType(MediaType.APPLICATION_JSON).content("{\"status\":\"COMPLETED\"}")) .andExpect(status().isOk());
     mvc.perform(get("/api/business/dispatch/list")).andExpect(status().isUnauthorized());
@@ -289,9 +289,9 @@ class RbacFlowTest {
       .content("{\"customerId\":"+customerId+",\"skuId\":"+skuId+",\"quantity\":1,\"gameAccount\":\"multi-member-test\"}"))
       .andExpect(status().isOk()).andReturn().getResponse().getContentAsString()).at("/data/id").asLong();
     fundAndPay(admin,orderId,"multi-member-pay");
-    db.update("update pw_order set required_player_count=2 where id=?",orderId);
+    db.update("update pw_service_order set required_player_count=2 where order_id=?",orderId);
     long gameId=db.queryForObject("select game_id from pw_order_game_profile where order_id=?",Long.class,orderId);
-    Long levelId=db.queryForObject("select requested_player_level_id from pw_order where id=?",Long.class,orderId);
+    Long levelId=db.queryForObject("select requested_player_level_id from pw_service_order where order_id=?",Long.class,orderId);
     db.update("update pw_player set work_status='AVAILABLE',max_active_orders=5 where player_no in('DEMO-PW-001','DEMO-PW-002')");
     db.update("update pw_player_game set price_level_id=?,audit_status='APPROVED',enabled=true where game_id=? and player_id in(select id from pw_player where player_no in('DEMO-PW-001','DEMO-PW-002'))",levelId,gameId);
     long taskId=json.readTree(mvc.perform(post("/api/business/dispatch").header("Authorization",admin).contentType(MediaType.APPLICATION_JSON)
@@ -304,20 +304,30 @@ class RbacFlowTest {
     mvc.perform(put("/api/business/dispatch/{id}/respond",taskId).header("Authorization",admin).contentType(MediaType.APPLICATION_JSON)
       .content("{\"playerId\":"+first+",\"action\":\"ACCEPT\"}"))
       .andExpect(status().isOk());
-    assertThat(db.queryForObject("select order_status from pw_order where id=?",String.class,orderId)).isEqualTo("WAIT_ASSIGN");
+    assertThat(db.queryForObject("select service_status from pw_service_order where order_id=?",String.class,orderId)).isEqualTo("WAIT_ASSIGN");
     assertThat(db.queryForObject("select count(*) from pw_order_member where order_id=?",Long.class,orderId)).isEqualTo(1);
     assertThat(db.queryForObject("select task_status from pw_dispatch_task where id=?",String.class,taskId)).isEqualTo("DISPATCHING");
 
     mvc.perform(put("/api/business/dispatch/{id}/respond",taskId).header("Authorization",admin).contentType(MediaType.APPLICATION_JSON)
       .content("{\"playerId\":"+second+",\"action\":\"ACCEPT\"}"))
       .andExpect(status().isOk());
-    assertThat(db.queryForObject("select order_status from pw_order where id=?",String.class,orderId)).isEqualTo("ASSIGNED");
+    assertThat(db.queryForObject("select service_status from pw_service_order where order_id=?",String.class,orderId)).isEqualTo("ASSIGNED");
     assertThat(db.queryForObject("select task_status from pw_dispatch_task where id=?",String.class,taskId)).isEqualTo("ACCEPTED");
-    assertThat(db.queryForObject("select assigned_player_id from pw_order where id=?",Long.class,orderId)).isEqualTo(first);
+    assertThat(db.queryForObject("select count(*) from pw_order_member where order_id=?",Long.class,orderId)).isEqualTo(2);
     assertThat(db.queryForObject("select count(*) from pw_order_member where order_id=?",Long.class,orderId)).isEqualTo(2);
     mvc.perform(get("/api/business/order/{id}",orderId).header("Authorization",admin))
       .andExpect(status().isOk()).andExpect(jsonPath("$.data.requiredPlayerCount").value(2))
       .andExpect(jsonPath("$.data.memberCount").value(2)).andExpect(jsonPath("$.data.members.length()").value(2));
+    mvc.perform(put("/api/business/order/{id}/status",orderId).header("Authorization",admin).contentType(MediaType.APPLICATION_JSON).content("{\"status\":\"IN_SERVICE\"}"))
+      .andExpect(status().isOk());
+    mvc.perform(put("/api/business/order/{id}/status",orderId).header("Authorization",admin).contentType(MediaType.APPLICATION_JSON).content("{\"status\":\"COMPLETED\"}"))
+      .andExpect(status().isOk());
+    assertThat(db.queryForObject("select count(*) from pw_order_settlement where order_id=?",Long.class,orderId)).isEqualTo(1);
+    assertThat(db.queryForObject("select count(*) from pw_player_earning where order_id=?",Long.class,orderId)).isEqualTo(2);
+    var paid=db.queryForObject("select paid_amount from pw_trade_order where id=?",java.math.BigDecimal.class,orderId);
+    var platform=db.queryForObject("select platform_amount from pw_order_settlement where order_id=?",java.math.BigDecimal.class,orderId);
+    var players=db.queryForObject("select sum(player_amount) from pw_player_earning where order_id=?",java.math.BigDecimal.class,orderId);
+    assertThat(platform.add(players)).isEqualByComparingTo(paid);
   }
 
   @Test void walletRechargeIsIdempotentAndProducesImmutableLedger() throws Exception {
@@ -338,6 +348,9 @@ class RbacFlowTest {
 
     String rechargeNo=db.queryForObject("select recharge_no from pw_recharge_order where user_id=? and request_no=?",String.class,adminId,requestNo);
     assertThat(db.queryForObject("select count(*) from pw_recharge_order where user_id=? and request_no=?",Long.class,adminId,requestNo)).isEqualTo(1);
+    long tradeOrderId=db.queryForObject("select trade_order_id from pw_recharge_order where user_id=? and request_no=?",Long.class,adminId,requestNo);
+    assertThat(db.queryForObject("select business_type from pw_trade_order where id=?",String.class,tradeOrderId)).isEqualTo("WALLET_RECHARGE");
+    assertThat(db.queryForObject("select count(*) from pw_trade_payment where order_id=?",Long.class,tradeOrderId)).isEqualTo(1);
     assertThat(db.queryForObject("select count(*) from pw_wallet_transaction where business_type='RECHARGE' and business_no=?",Long.class,rechargeNo)).isEqualTo(2);
     assertThat(db.queryForObject("select cash_balance from pw_wallet_account where owner_type='USER' and owner_id=?",java.math.BigDecimal.class,adminId)).isEqualByComparingTo(cashBefore.add(new java.math.BigDecimal("500.00")));
     assertThat(db.queryForObject("select bonus_balance from pw_wallet_account where owner_type='USER' and owner_id=?",java.math.BigDecimal.class,adminId)).isEqualByComparingTo(bonusBefore.add(new java.math.BigDecimal("40.00")));
@@ -359,7 +372,7 @@ class RbacFlowTest {
     recharge(admin,"payment-refund-fund");
     java.math.BigDecimal cashBefore=db.queryForObject("select cash_balance from pw_wallet_account where owner_type='USER' and owner_id=?",java.math.BigDecimal.class,uid);
     java.math.BigDecimal bonusBefore=db.queryForObject("select bonus_balance from pw_wallet_account where owner_type='USER' and owner_id=?",java.math.BigDecimal.class,uid);
-    java.math.BigDecimal payable=db.queryForObject("select payable_amount from pw_order where id=?",java.math.BigDecimal.class,orderId);
+    java.math.BigDecimal payable=db.queryForObject("select payable_amount from pw_trade_order where id=?",java.math.BigDecimal.class,orderId);
     String requestNo="pay-refund-"+orderId;
     mvc.perform(post("/api/customer/orders/{id}/pay",orderId).header("Authorization",admin).contentType(MediaType.APPLICATION_JSON).content("{\"requestNo\":\""+requestNo+"\"}"))
       .andExpect(status().isOk()).andExpect(jsonPath("$.data.duplicated").value(false))
@@ -369,10 +382,10 @@ class RbacFlowTest {
       .andExpect(status().isOk()).andExpect(jsonPath("$.data.duplicated").value(true));
     mvc.perform(put("/api/customer/orders/{id}/cancel",orderId).header("Authorization",admin).contentType(MediaType.APPLICATION_JSON).content("{\"reason\":\"测试退款\"}"))
       .andExpect(status().isOk());
-    assertThat(db.queryForObject("select payment_status from pw_order_payment where order_id=?",String.class,orderId)).isEqualTo("REFUNDED");
+    assertThat(db.queryForObject("select payment_status from pw_trade_payment where order_id=?",String.class,orderId)).isEqualTo("REFUNDED");
     assertThat(db.queryForObject("select cash_balance from pw_wallet_account where owner_type='USER' and owner_id=?",java.math.BigDecimal.class,uid)).isEqualByComparingTo(cashBefore);
     assertThat(db.queryForObject("select bonus_balance from pw_wallet_account where owner_type='USER' and owner_id=?",java.math.BigDecimal.class,uid)).isEqualByComparingTo(bonusBefore);
-    String paymentNo=db.queryForObject("select payment_no from pw_order_payment where order_id=?",String.class,orderId);
+    String paymentNo=db.queryForObject("select payment_no from pw_trade_payment where order_id=?",String.class,orderId);
     assertThat(db.queryForObject("select count(*) from pw_wallet_transaction where business_no=? and business_type in('ORDER_PAYMENT','ORDER_REFUND')",Long.class,paymentNo)).isGreaterThanOrEqualTo(2);
   }
 
@@ -386,7 +399,7 @@ class RbacFlowTest {
     recharge(admin,"mixed-balance-fund-"+orderId);
     java.math.BigDecimal originalCash=db.queryForObject("select cash_balance from pw_wallet_account where owner_type='USER' and owner_id=?",java.math.BigDecimal.class,uid);
     java.math.BigDecimal originalBonus=db.queryForObject("select bonus_balance from pw_wallet_account where owner_type='USER' and owner_id=?",java.math.BigDecimal.class,uid);
-    java.math.BigDecimal payable=db.queryForObject("select payable_amount from pw_order where id=?",java.math.BigDecimal.class,orderId);
+    java.math.BigDecimal payable=db.queryForObject("select payable_amount from pw_trade_order where id=?",java.math.BigDecimal.class,orderId);
     java.math.BigDecimal cash=new java.math.BigDecimal("10.00"),bonus=payable;
     try {
       db.update("update pw_wallet_account set cash_balance=?,bonus_balance=? where owner_type='USER' and owner_id=?",cash,bonus,uid);
@@ -428,8 +441,8 @@ class RbacFlowTest {
     } finally {
       pool.shutdownNow();
     }
-    assertThat(db.queryForObject("select count(*) from pw_order_payment where order_id=?",Long.class,orderId)).isEqualTo(1);
-    assertThat(db.queryForObject("select order_status from pw_order where id=?",String.class,orderId)).isEqualTo("WAIT_ASSIGN");
+    assertThat(db.queryForObject("select count(*) from pw_trade_payment where order_id=?",Long.class,orderId)).isEqualTo(1);
+    assertThat(db.queryForObject("select service_status from pw_service_order where order_id=?",String.class,orderId)).isEqualTo("WAIT_ASSIGN");
     mvc.perform(put("/api/customer/orders/{id}/cancel",orderId).header("Authorization",admin).contentType(MediaType.APPLICATION_JSON).content("{\"reason\":\"并发支付测试清理\"}"))
       .andExpect(status().isOk());
   }
@@ -448,8 +461,8 @@ class RbacFlowTest {
       .andExpect(status().isOk()).andExpect(jsonPath("$.data.duplicated").value(false)).andExpect(jsonPath("$.data.paymentChannel").value("MOCK_WECHAT"));
     mvc.perform(post("/api/customer/orders/{id}/pay/mock-wechat",orderId).header("Authorization",admin).contentType(MediaType.APPLICATION_JSON).content("{\"requestNo\":\""+requestNo+"\"}"))
       .andExpect(status().isOk()).andExpect(jsonPath("$.data.duplicated").value(true));
-    assertThat(db.queryForObject("select order_status from pw_order where id=?",String.class,orderId)).isEqualTo("WAIT_ASSIGN");
-    assertThat(db.queryForObject("select payment_channel from pw_order_payment where order_id=?",String.class,orderId)).isEqualTo("MOCK_WECHAT");
+    assertThat(db.queryForObject("select service_status from pw_service_order where order_id=?",String.class,orderId)).isEqualTo("WAIT_ASSIGN");
+    assertThat(db.queryForObject("select payment_channel from pw_trade_payment where order_id=?",String.class,orderId)).isEqualTo("MOCK_WECHAT");
     assertThat(db.queryForObject("select cash_balance from pw_wallet_account where owner_type='USER' and owner_id=?",java.math.BigDecimal.class,uid)).isEqualByComparingTo(cashBefore);
     assertThat(db.queryForObject("select bonus_balance from pw_wallet_account where owner_type='USER' and owner_id=?",java.math.BigDecimal.class,uid)).isEqualByComparingTo(bonusBefore);
   }
@@ -496,6 +509,81 @@ class RbacFlowTest {
         else assertThat(actual).isEqualTo(filter);
       }
     }
+  }
+
+  @Test void auditedSingleMemberTransferKeepsOtherMembersAndBuildsImmutableChain() throws Exception {
+    String admin=login("admin","Test-Only-Password-9x!");
+    long customerId=db.queryForObject("select id from sys_user where username='admin'",Long.class);
+    long skuId=db.queryForObject("select id from pw_product_sku where sku_code='delta-escort-1game'",Long.class);
+    long orderId=json.readTree(mvc.perform(post("/api/business/order").header("Authorization",admin).contentType(MediaType.APPLICATION_JSON)
+      .content("{\"customerId\":"+customerId+",\"skuId\":"+skuId+",\"quantity\":1,\"gameAccount\":\"transfer-member-test\"}"))
+      .andExpect(status().isOk()).andReturn().getResponse().getContentAsString()).at("/data/id").asLong();
+    fundAndPay(admin,orderId,"transfer-member-pay");
+    db.update("update pw_service_order set required_player_count=2 where order_id=?",orderId);
+    long gameId=db.queryForObject("select game_id from pw_order_game_profile where order_id=?",Long.class,orderId);
+    Long levelId=db.queryForObject("select requested_player_level_id from pw_service_order where order_id=?",Long.class,orderId);
+    db.update("update pw_player set work_status='AVAILABLE',max_active_orders=10,audit_status='APPROVED',enabled=true where player_no in('DEMO-PW-001','DEMO-PW-002','DEMO-PW-005','DEMO-ADMIN-PLAYER')");
+    db.update("update pw_dispatch_rule set max_active_orders=10 where enabled=true");
+    var chosen=db.queryForList("select id from pw_player where player_no in('DEMO-PW-001','DEMO-PW-002') order by player_no",Long.class);assertThat(chosen).hasSize(2);long first=chosen.get(0),second=chosen.get(1);
+    long target=db.queryForObject("select coalesce((select min(id) from pw_player where user_id=(select id from sys_user where username='admin')),(select id from pw_player where player_no='DEMO-PW-005'))",Long.class);
+    db.update("update pw_player set user_id=? where id=? and not exists(select 1 from pw_player where user_id=?)",customerId,target,customerId);
+    db.update("update pw_player_game set price_level_id=?,audit_status='APPROVED',enabled=true where game_id=? and player_id in(?,?,?)",levelId,gameId,first,second,target);
+    mvc.perform(put("/api/business/order/{id}/assign",orderId).header("Authorization",admin).contentType(MediaType.APPLICATION_JSON).content("{\"playerId\":"+first+"}")).andExpect(status().isOk());
+    mvc.perform(put("/api/business/order/{id}/assign",orderId).header("Authorization",admin).contentType(MediaType.APPLICATION_JSON).content("{\"playerId\":"+second+"}")).andExpect(status().isOk());
+    mvc.perform(put("/api/business/order/{id}/status",orderId).header("Authorization",admin).contentType(MediaType.APPLICATION_JSON).content("{\"status\":\"IN_SERVICE\"}")).andExpect(status().isOk());
+    long sourceMember=db.queryForObject("select id from pw_order_member where order_id=? and player_id=?",Long.class,orderId,first);
+    long requestId=json.readTree(mvc.perform(post("/api/customer/orders/{id}/service-exceptions",orderId).header("Authorization",admin).contentType(MediaType.APPLICATION_JSON)
+      .content("{\"requestType\":\"TRANSFER\",\"sourceOrderMemberId\":"+sourceMember+",\"targetPlayerId\":"+target+",\"reason\":\"成员临时无法继续\"}"))
+      .andExpect(status().isOk()).andReturn().getResponse().getContentAsString()).at("/data/id").asLong();
+    assertThat(db.queryForObject("select member_status from pw_order_member where id=?",String.class,sourceMember)).isEqualTo("IN_SERVICE");
+    mvc.perform(put("/api/business/service-exceptions/{id}/review",requestId).header("Authorization",admin).contentType(MediaType.APPLICATION_JSON).content("{\"action\":\"APPROVE\",\"remark\":\"允许转单\"}")).andExpect(status().isOk());
+    assertThat(db.queryForObject("select request_status from pw_service_exception_request where id=?",String.class,requestId)).isEqualTo("WAIT_TARGET");
+    mvc.perform(put("/api/player/service-transfers/{id}/respond",requestId).header("Authorization",admin).contentType(MediaType.APPLICATION_JSON).content("{\"action\":\"ACCEPT\"}")).andExpect(status().isOk());
+    assertThat(db.queryForObject("select member_status from pw_order_member where id=?",String.class,sourceMember)).isEqualTo("TRANSFERRED");
+    assertThat(db.queryForObject("select count(*) from pw_order_member where order_id=? and member_status='IN_SERVICE'",Long.class,orderId)).isEqualTo(2);
+    assertThat(db.queryForObject("select count(*) from pw_order_member where order_id=? and player_id=? and member_status='IN_SERVICE'",Long.class,orderId,second)).isEqualTo(1);
+    assertThat(db.queryForObject("select count(*) from pw_service_member_transfer where exception_request_id=? and from_order_member_id=?",Long.class,requestId,sourceMember)).isEqualTo(1);
+    long replacementMember=db.queryForObject("select replacement_order_member_id from pw_service_exception_request where id=?",Long.class,requestId);
+    long replacementPlayer=db.queryForObject("select player_id from pw_order_member where id=?",Long.class,replacementMember);
+    db.update("insert into pw_player_account(player_id,available_balance,frozen_balance,total_income,total_withdrawn,version) select ?,100,0,100,0,0 where not exists(select 1 from pw_player_account where player_id=?)",first,first);
+    var sourceBefore=db.queryForObject("select available_balance from pw_player_account where player_id=?",java.math.BigDecimal.class,first);
+    mvc.perform(put("/api/business/order/{id}/status",orderId).header("Authorization",admin).contentType(MediaType.APPLICATION_JSON).content("{\"status\":\"COMPLETED\"}")) .andExpect(status().isOk());
+    assertThat(db.queryForObject("select calculation_base from pw_service_liability where order_id=? and liability_type='TRANSFER_COMPENSATION'",java.math.BigDecimal.class,orderId)).isEqualByComparingTo("99.00");
+    assertThat(db.queryForObject("select rate from pw_service_liability where order_id=? and liability_type='TRANSFER_COMPENSATION'",java.math.BigDecimal.class,orderId)).isEqualByComparingTo("0.1600");
+    assertThat(db.queryForObject("select amount from pw_service_liability where order_id=? and liability_type='TRANSFER_COMPENSATION'",java.math.BigDecimal.class,orderId)).isEqualByComparingTo("15.84");
+    assertThat(db.queryForObject("select available_balance from pw_player_account where player_id=?",java.math.BigDecimal.class,first)).isEqualByComparingTo(sourceBefore.subtract(new java.math.BigDecimal("15.84")));
+    assertThat(db.queryForObject("select count(*) from pw_service_penalty_ledger where order_id=? and player_id=? and direction='IN' and amount=15.84",Long.class,orderId,replacementPlayer)).isEqualTo(1);
+  }
+
+  @Test void approvedAbortEndsServiceAndRefundsPaidOrder() throws Exception {
+    String admin=login("admin","Test-Only-Password-9x!");
+    long customerId=db.queryForObject("select id from sys_user where username='admin'",Long.class);
+    long skuId=db.queryForObject("select id from pw_product_sku where sku_code='delta-escort-1game'",Long.class);
+    long orderId=json.readTree(mvc.perform(post("/api/business/order").header("Authorization",admin).contentType(MediaType.APPLICATION_JSON)
+      .content("{\"customerId\":"+customerId+",\"skuId\":"+skuId+",\"quantity\":1,\"gameAccount\":\"approved-abort-test\"}"))
+      .andExpect(status().isOk()).andReturn().getResponse().getContentAsString()).at("/data/id").asLong();
+    fundAndPay(admin,orderId,"approved-abort-pay");
+    long playerId=db.queryForObject("select id from pw_player where player_no='DEMO-PW-001'",Long.class);
+    long gameId=db.queryForObject("select game_id from pw_order_game_profile where order_id=?",Long.class,orderId);
+    Long levelId=db.queryForObject("select requested_player_level_id from pw_service_order where order_id=?",Long.class,orderId);
+    db.update("update pw_player set work_status='AVAILABLE',max_active_orders=10 where id=?",playerId);
+    db.update("update pw_player_game set price_level_id=?,audit_status='APPROVED',enabled=true where game_id=? and player_id=?",levelId,gameId,playerId);
+    mvc.perform(put("/api/business/order/{id}/assign",orderId).header("Authorization",admin).contentType(MediaType.APPLICATION_JSON).content("{\"playerId\":"+playerId+"}")).andExpect(status().isOk());
+    mvc.perform(put("/api/business/order/{id}/status",orderId).header("Authorization",admin).contentType(MediaType.APPLICATION_JSON).content("{\"status\":\"IN_SERVICE\"}")).andExpect(status().isOk());
+    long sourceMember=db.queryForObject("select id from pw_order_member where order_id=? and player_id=?",Long.class,orderId,playerId);
+    long requestId=json.readTree(mvc.perform(post("/api/customer/orders/{id}/service-exceptions",orderId).header("Authorization",admin).contentType(MediaType.APPLICATION_JSON)
+      .content("{\"requestType\":\"ABORT\",\"sourceOrderMemberId\":"+sourceMember+",\"reason\":\"服务无法继续\"}"))
+      .andExpect(status().isOk()).andReturn().getResponse().getContentAsString()).at("/data/id").asLong();
+    mvc.perform(put("/api/business/service-exceptions/{id}/review",requestId).header("Authorization",admin).contentType(MediaType.APPLICATION_JSON).content("{\"action\":\"APPROVE\",\"remark\":\"审核确认终止\"}"))
+      .andExpect(status().isOk());
+    assertThat(db.queryForObject("select service_status from pw_service_order where order_id=?",String.class,orderId)).isEqualTo("CANCELLED");
+    assertThat(db.queryForObject("select trade_status from pw_trade_order where id=?",String.class,orderId)).isEqualTo("CANCELLED");
+    assertThat(db.queryForObject("select payment_status from pw_trade_payment where order_id=?",String.class,orderId)).isEqualTo("REFUNDED");
+    assertThat(db.queryForObject("select request_status from pw_service_exception_request where id=?",String.class,requestId)).isEqualTo("APPROVED");
+    assertThat(db.queryForObject("select calculation_base from pw_service_liability where order_id=? and liability_type='ABORT_PENALTY'",java.math.BigDecimal.class,orderId)).isEqualByComparingTo("99.00");
+    assertThat(db.queryForObject("select rate from pw_service_liability where order_id=? and liability_type='ABORT_PENALTY'",java.math.BigDecimal.class,orderId)).isEqualByComparingTo("0.2000");
+    assertThat(db.queryForObject("select amount from pw_service_liability where order_id=? and liability_type='ABORT_PENALTY'",java.math.BigDecimal.class,orderId)).isEqualByComparingTo("19.80");
+    assertThat(db.queryForObject("select count(*) from pw_platform_ledger where order_id=? and business_type='SERVICE_ABORT_PENALTY' and amount=19.80",Long.class,orderId)).isEqualTo(1);
   }
 
   @Test void regularServiceProductSeedsHaveGameScopedLevelPrices() {
