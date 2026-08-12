@@ -30,7 +30,7 @@
     "build:mp-toutiao": "uni build -p mp-toutiao",
     "build:mp-harmony": "uni build -p mp-harmony",
     "build:mp-weixin": "uni build -p mp-weixin && node scripts/copy-wechat-tabbar.mjs build",
-    "build:mp-weixin:dev": "uni build -p mp-weixin --mode development && node scripts/copy-wechat-tabbar.mjs build",
+    "build:mp-weixin:dev": "uni build -p mp-weixin --mode development && node scripts/copy-wechat-tabbar.mjs build && node scripts/sync-wechat-dev.mjs",
     "build:mp-xhs": "uni build -p mp-xhs",
     "build:quickapp-webview": "uni build -p quickapp-webview",
     "build:quickapp-webview-huawei": "uni build -p quickapp-webview-huawei",

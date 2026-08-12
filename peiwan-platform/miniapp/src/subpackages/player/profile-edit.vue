@@ -71,7 +71,7 @@
     </view>
 
     <view class="bottom-space" />
-    <view v-if="!readonly" class="bottom-actions"><button class="draft-button" :disabled="saving" @click="saveDraft">保存草稿</button><button class="submit-button" :disabled="saving" @click="submitForAudit">提交审核</button></view>
+    <view v-if="!readonly" class="bottom-actions"><button class="draft-button" :disabled="saving" @click="saveDraft()">保存草稿</button><button class="submit-button" :disabled="saving" @click="submitForAudit">提交审核</button></view>
   </view>
 </template>
 
@@ -113,7 +113,7 @@ async function load() {
 }
 function applySource(source:RecordData) {
   Object.assign(form, {
-    nickname:String(source.nickname || ''), realName:String(source.realName || ''), gender:String(source.gender || 'UNKNOWN'), phone:String(source.phone || ''), email:String(source.email || ''), loginAccount:String(source.loginAccount || profileData.value.profile?.loginAccount || ''),
+    nickname:String(source.nickname || ''), realName:String(source.realName || ''), gender:String(source.gender || 'UNKNOWN'), phone:String(source.phone || ''), email:String(source.email || ''), loginAccount:String(source.loginAccount || (profileData.value.profile as RecordData | undefined)?.loginAccount || ''),
     avatarUrl:String(source.avatarUrl || ''), coverUrl:String(source.coverUrl || ''), introduction:String(source.introduction || ''), voiceUrl:String(source.voiceUrl || ''),
     tagIds:[...((source.tagIds || []) as number[])],
     games:((source.games || []) as any[]).map(game => ({ gameId:Number(game.gameId),gameNickname:String(game.gameNickname||''),gameAccount:String(game.gameAccount||''),serverName:String(game.serverName||''),rankName:String(game.rankName||''),rankLevel:game.rankLevel||null,experienceYears:game.experienceYears||null,introduction:String(game.introduction||''),proofUrl:String(game.proofUrl||''),primary:Boolean(game.primary),enabled:game.enabled!==false,positionIds:[...(game.positionIds||[])],primaryPositionId:game.primaryPositionId||null })),
@@ -144,7 +144,7 @@ async function addMedia(type:'PHOTO'|'VIDEO'|'VOICE') {
   if(type==='VOICE')path=await chooseMessageFile(['mp3','wav','m4a'])
   if(path)await upload(path,url=>form.media.push({mediaType:type,mediaUrl:url,thumbnailUrl:'',title:'',sortNo:form.media.length,enabled:true}),'MEDIA')
 }
-function chooseMessageFile(extension:string[]):Promise<string> { return new Promise(resolve => { const wechat=wx as any; wechat.chooseMessageFile({count:1,type:'file',extension,success:(result:any)=>resolve(result.tempFiles?.[0]?.path||''),fail:()=>resolve('')}) }) }
+function chooseMessageFile(extension:string[]):Promise<string> { return new Promise(resolve => { const wechat=(globalThis as any).wx; wechat.chooseMessageFile({count:1,type:'file',extension,success:(result:any)=>resolve(result.tempFiles?.[0]?.path||''),fail:()=>resolve('')}) }) }
 async function upload(path:string,done:(url:string)=>void,kind:string) { uploading.value=true;uni.showLoading({title:'上传中'});try{done(await uploadFile(path,kind))}finally{uploading.value=false;uni.hideLoading()} }
 function payload():RecordData { const data=JSON.parse(JSON.stringify(form));delete data.loginAccount;return data }
 async function saveDraft(showMessage=true) { if(!form.nickname.trim())return uni.showToast({title:'请填写展示昵称',icon:'none'});saving.value=true;try{await saveOwnPlayerProfileDraft(payload());if(showMessage)uni.showToast({title:'草稿已保存',icon:'success'});await load()}finally{saving.value=false} }

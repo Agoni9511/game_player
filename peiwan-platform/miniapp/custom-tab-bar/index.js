@@ -7,9 +7,9 @@ const customerList = [
 ]
 const playerList = [
   { pagePath: '/pages/home/index', text: '工作台', iconPath: '/static/icons/home.png', selectedIconPath: '/static/icons/home-active.png' },
-  { pagePath: '/pages/hall/index', text: '大厅', iconPath: '/static/icons/list.png', selectedIconPath: '/static/icons/list.png' },
-  { pagePath: '/pages/players/index', text: '开始接单', iconPath: '/static/icons/gamepad.png', selectedIconPath: '/static/icons/gamepad.png', center: true },
-  { pagePath: '/pages/messages/index', text: '邀请', iconPath: '/static/icons/bell.png', selectedIconPath: '/static/icons/bell.png' },
+  { pagePath: '/pages/hall/index', text: '抢单大厅', iconPath: '/static/icons/list.png', selectedIconPath: '/static/icons/list.png' },
+  { pagePath: '/pages/players/index', text: '服务单', iconPath: '/static/icons/gamepad.png', selectedIconPath: '/static/icons/gamepad.png', center: true },
+  { pagePath: '/pages/messages/index', text: '通知', iconPath: '/static/icons/bell.png', selectedIconPath: '/static/icons/bell.png' },
   { pagePath: '/pages/profile/index', text: '我的', iconPath: '/static/icons/profile.png', selectedIconPath: '/static/icons/profile-active.png' }
 ]
 Component({

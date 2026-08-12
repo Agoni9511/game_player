@@ -1,1 +1,0 @@
-import{bM as a,bN as r,a2 as e,a7 as o,u as s}from"./index-DAEICR4B.js";const t={prefix:Math.floor(1e4*Math.random()),current:0},n=Symbol("elIdInjection"),i=()=>o()?e(n,t):t,u=e=>{const o=i(),t=a();return r(()=>s(e)||`${t.value}-id-${o.prefix}-${o.current++}`)};export{i as a,u};

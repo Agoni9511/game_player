@@ -18,3 +18,6 @@ export const getOwnPlayerProfile = () => request<RecordData>({ url: '/api/player
 export const getOwnPlayerProfileOptions = () => request<RecordData>({ url: '/api/player/profile/options', method: 'GET' })
 export const saveOwnPlayerProfileDraft = (data: RecordData) => request<void>({ url: '/api/player/profile/draft', method: 'PUT', data })
 export const submitOwnPlayerProfile = () => request<void>({ url: '/api/player/profile/submit', method: 'POST' })
+export const getPlayerSettlement = () => request<RecordData>({ url: '/api/player/settlement', method: 'GET' })
+export const getPlayerEarnings = (current = 1, size = 20) => request<PageResult<RecordData>>({ url: '/api/player/settlement/earnings', method: 'GET', data: { current, size } })
+export const getPlayerWithdrawals = (current = 1, size = 20) => request<PageResult<RecordData>>({ url: '/api/player/withdrawals', method: 'GET', data: { current, size } })

@@ -1,9 +1,10 @@
 <template>
   <view v-if="mode.isPlayerMode" class="page tab-page player-mode">
-    <view class="player-head"><view class="eyebrow">接单中心</view><view class="title">准备好开始今天的服务了吗？</view><text>开启后可接收平台派单邀请</text></view>
-    <view class="status-card"><view><text>当前状态</text><view>{{ workStatusLabel }}</view></view><button :disabled="toggling || workStatus === 'BUSY'" @click="toggleStatus">{{ toggling ? '切换中...' : workStatus === 'AVAILABLE' ? '暂停接单' : '开始接单' }}</button></view>
-    <view class="work-stats"><view><text>{{ workbench.pendingDispatchCount || 0 }}</text><label>待响应</label></view><view><text>{{ workbench.activeOrderCount || 0 }}</text><label>服务中</label></view><view><text>{{ workbench.completedOrderCount || 0 }}</text><label>已完成</label></view></view>
-    <view class="work-actions"><view @click="goPage('/subpackages/player/dispatches')">待抢订单</view><view @click="goPage('/subpackages/player/orders')">服务订单</view></view>
+    <view class="service-head">
+      <view><view class="service-title">服务单</view><text>今天有 <label>{{ workbench.activeOrderCount || 0 }}</label> 单待处理</text></view>
+      <view class="availability-control" :class="workStatusTone" @click="toggleStatus"><view><text /></view><label>{{ toggling ? '切换中' : workStatusLabel }}</label></view>
+    </view>
+    <PlayerOrderList ref="playerOrders" />
   </view>
 
   <view v-else class="players-page">
@@ -40,6 +41,7 @@ import { getCatalogGames, getCatalogPlayers } from '@/api/customer'
 import { getWorkbench, updateWorkStatus } from '@/api/player'
 import { assetUrl } from '@/services/http'
 import { useAppModeStore } from '@/stores/app-mode'
+import PlayerOrderList from '@/components/PlayerOrderList.vue'
 import type { RecordData } from '@/types/api'
 
 const mode = useAppModeStore()
@@ -51,8 +53,10 @@ const availableOnly = ref(false)
 const loading = ref(false)
 const workbench = ref<RecordData>({})
 const toggling = ref(false)
+const playerOrders = ref<InstanceType<typeof PlayerOrderList>>()
 const workStatus = computed(() => String((workbench.value.player as RecordData | undefined)?.workStatus || 'OFFLINE'))
 const workStatusLabel = computed(() => statusText(workStatus.value))
+const workStatusTone = computed(() => workStatus.value === 'AVAILABLE' ? 'available' : workStatus.value === 'BUSY' ? 'busy' : 'offline')
 const visiblePlayers = computed(() => {
   const key = keyword.value.toLowerCase()
   return players.value.filter(item => {
@@ -68,6 +72,7 @@ onShow(async () => {
   mode.ensureAllowed()
   if (mode.isPlayerMode) {
     workbench.value = await getWorkbench().catch(() => ({}))
+    playerOrders.value?.load()
     return
   }
   loading.value = true
@@ -95,10 +100,13 @@ async function toggleStatus() {
   try { await updateWorkStatus(target); workbench.value = await getWorkbench(); uni.showToast({ title: target === 'AVAILABLE' ? '已开始接单' : '已暂停接单' }) }
   finally { toggling.value = false }
 }
-function goPage(url: string) { uni.navigateTo({ url }) }
+function goPage(url: string) { url.startsWith('/pages/') ? uni.switchTab({ url }) : uni.navigateTo({ url }) }
 </script>
 
 <style scoped>
 .players-page,.player-mode{min-height:100vh;padding:32rpx 26rpx calc(250rpx + env(safe-area-inset-bottom));box-sizing:border-box;background-color:#eee9da;background-image:radial-gradient(circle at 88% 2%,rgba(91,126,108,.15),transparent 34%),linear-gradient(180deg,rgba(244,240,225,.86),rgba(244,240,225,.96))}.players-head{padding:20rpx 8rpx 26rpx;display:flex;align-items:center;justify-content:space-between}.players-head text,.players-head label{display:block}.players-head text{font-family:STKaiti,KaiTi,serif;font-size:43rpx;font-weight:800}.players-head label{margin-top:9rpx;color:#748078;font-size:21rpx}.head-seal{padding:9rpx;border:3rpx double #963d31;color:#963d31;font-family:STKaiti,KaiTi,serif;transform:rotate(5deg)}.player-search{height:82rpx;padding:0 22rpx;border:1rpx solid rgba(49,92,80,.2);border-radius:42rpx;display:flex;align-items:center;background:rgba(255,252,241,.94);box-shadow:0 9rpx 24rpx rgba(35,53,43,.06)}.player-search image{width:34rpx;height:34rpx}.player-search input{flex:1;margin-left:15rpx;font-size:24rpx}.player-search>text{width:46rpx;height:46rpx;border-radius:50%;color:#718078;background:#e5e9df;line-height:43rpx;text-align:center;font-size:31rpx}.filter-scroll{margin-top:22rpx;white-space:nowrap}.filter-row{display:flex;gap:12rpx}.filter-row>view{padding:13rpx 23rpx;border:1rpx solid rgba(49,92,80,.18);border-radius:28rpx;color:#708078;background:rgba(255,252,241,.74);font-size:21rpx}.filter-row .active{border-color:#315c50;color:#fffaf0;background:#315c50}.availability{margin:24rpx 4rpx 18rpx;display:flex;align-items:center;gap:12rpx}.availability>view{padding:9rpx 15rpx;border-radius:22rpx;color:#728078;background:#e3e7dc;font-size:19rpx}.availability>view.active{color:#fffaf0;background:#55786b}.availability>view text{display:inline-block;width:10rpx;height:10rpx;margin-right:7rpx;border-radius:50%;background:#4cb88a}.availability>label{margin-left:auto;color:#89938d;font-size:19rpx}.player-grid{display:flex;flex-direction:column;gap:18rpx}.player-card{position:relative;min-height:178rpx;padding:22rpx 54rpx 22rpx 20rpx;border:1rpx solid rgba(49,92,80,.17);border-radius:28rpx;display:flex;box-sizing:border-box;background:rgba(255,252,241,.92);box-shadow:0 10rpx 26rpx rgba(35,53,43,.07)}.avatar-wrap{position:relative;width:126rpx;height:126rpx;flex:none}.avatar-wrap image,.avatar-fallback{width:100%;height:100%;border-radius:32rpx;display:flex;align-items:center;justify-content:center;color:#fffaf0;background:#315c50;font-family:STKaiti,KaiTi,serif;font-size:45rpx}.status-dot{position:absolute;right:-3rpx;bottom:-3rpx;width:24rpx;height:24rpx;border:5rpx solid #fffaf0;border-radius:50%;background:#9ca49f}.status-dot.online{background:#43b985}.status-dot.busy{background:#d89a48}.player-main{min-width:0;flex:1;margin-left:20rpx}.name-row{display:flex;align-items:center}.name-row>text{overflow:hidden;font-family:STKaiti,KaiTi,serif;font-size:29rpx;font-weight:800;white-space:nowrap;text-overflow:ellipsis}.name-row>label{flex:none;margin-left:10rpx;padding:4rpx 9rpx;border-radius:14rpx;color:#315c50;background:#dfe9df;font-size:16rpx}.game-line{margin-top:8rpx;display:flex;align-items:center;gap:10rpx;color:#89918c;font-size:17rpx}.game-line>text{max-width:150rpx;overflow:hidden;color:#315c50;white-space:nowrap;text-overflow:ellipsis}.intro{margin-top:9rpx;overflow:hidden;color:#68766e;font-size:19rpx;line-height:29rpx;white-space:nowrap;text-overflow:ellipsis}.tag-row{height:37rpx;margin-top:9rpx;overflow:hidden;display:flex;gap:7rpx}.tag-row text{padding:4rpx 9rpx;border:1rpx solid;border-radius:15rpx;font-size:15rpx;white-space:nowrap}.card-arrow{position:absolute;right:20rpx;top:69rpx;color:#315c50;font-size:36rpx}.empty{padding:90rpx 20rpx;color:#89928d;text-align:center}.player-head{padding:48rpx 12rpx 34rpx}.player-head .eyebrow{color:#557669;font-size:21rpx;font-weight:700;letter-spacing:4rpx}.player-head .title{margin-top:13rpx}.player-head>text{display:block;margin-top:12rpx;color:#78847d;font-size:22rpx}.status-card{padding:30rpx;border:1rpx solid rgba(49,92,80,.18);border-radius:28rpx;display:flex;align-items:center;justify-content:space-between;background:rgba(255,252,241,.93)}.status-card>view>text{color:#7a867f;font-size:20rpx}.status-card>view>view{margin-top:8rpx;color:#315c50;font-size:36rpx;font-weight:800}.status-card button{margin:0;border-radius:28rpx;color:#fffaf0;background:#315c50}.work-stats{margin-top:18rpx;display:grid;grid-template-columns:repeat(3,1fr);gap:14rpx}.work-stats view{padding:25rpx 8rpx;border-radius:24rpx;text-align:center;background:rgba(255,252,241,.88)}.work-stats text,.work-stats label{display:block}.work-stats text{font-size:34rpx;font-weight:800}.work-stats label{margin-top:7rpx;color:#7a867f;font-size:18rpx}.work-actions{margin-top:20rpx;display:grid;grid-template-columns:1fr 1fr;gap:15rpx}.work-actions view{padding:26rpx;border-radius:26rpx;color:#315c50;text-align:center;background:#dfe8dc}
 .avatar-wrap image,.avatar-fallback{border-radius:50%}
+</style>
+<style scoped>
+.player-mode{min-height:100vh;padding:0 0 calc(155rpx + env(safe-area-inset-bottom));background:#f8f5ec}.service-head{padding:58rpx 38rpx 30rpx;display:flex;align-items:flex-end;justify-content:space-between}.service-title{color:#173d31;font-family:STKaiti,KaiTi,serif;font-size:58rpx;font-weight:900;letter-spacing:5rpx;line-height:1}.service-head>view:first-child>text{display:block;margin-top:18rpx;color:#818984;font-size:23rpx}.service-head>view:first-child>text label{margin:0 5rpx;color:#b72d25;font-size:30rpx;font-weight:800}.availability-control{display:flex;align-items:center;gap:13rpx;padding-bottom:5rpx;color:#173d31;font-size:24rpx;font-weight:800}.availability-control>view{width:72rpx;height:40rpx;padding:4rpx;border-radius:25rpx;box-sizing:border-box;background:#a8aea9}.availability-control>view text{display:block;width:32rpx;height:32rpx;border-radius:50%;background:#fff;transition:transform .2s}.availability-control.available>view,.availability-control.busy>view{background:#174b3b}.availability-control.available>view text,.availability-control.busy>view text{transform:translateX(32rpx)}.availability-control.busy label{color:#8b653f}.availability-control.offline{color:#7e8681}
 </style>

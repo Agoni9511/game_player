@@ -35,6 +35,7 @@
         { "path": "dispatches", "style": { "navigationBarTitleText": "待响应派单" } },
         { "path": "orders", "style": { "navigationBarTitleText": "服务订单" } },
         { "path": "profile-edit", "style": { "navigationBarTitleText": "我的陪玩资料" } },
+        { "path": "settlement", "style": { "navigationBarTitleText": "我的收益" } },
         { "path": "order-detail", "style": { "navigationBarTitleText": "服务详情" } },
         { "path": "submit", "style": { "navigationBarTitleText": "提交完成" } },
         { "path": "service-exception", "style": { "navigationBarTitleText": "转单 / 炸单申请" } }

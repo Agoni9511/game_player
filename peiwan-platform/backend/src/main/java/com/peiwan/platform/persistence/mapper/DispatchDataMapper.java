@@ -19,6 +19,7 @@ public interface DispatchDataMapper{
  @Update("update pw_dispatch_task set task_status='CANCELLED',cancelled_at=current_timestamp,updated_at=current_timestamp where id=#{id} and task_status='DISPATCHING'") int cancelTask(long id);
  @Update("update pw_dispatch_candidate set candidate_status='CLOSED' where task_id=#{id} and candidate_status='PENDING'") int cancelCandidates(long id);
  @Select("select * from pw_dispatch_task where task_status='DISPATCHING' and deadline_at<=current_timestamp") List<Map<String,Object>> dueTasks();
+ @Select("select s.order_id from pw_service_order s where s.service_status='WAIT_ASSIGN' and not exists(select 1 from pw_dispatch_task d where d.order_id=s.order_id and d.task_status='DISPATCHING' and d.deadline_at>current_timestamp) order by s.order_id") List<Long> waitingOrdersWithoutActiveDispatch();
  @Update("update pw_dispatch_task set task_status='EXPIRED',updated_at=current_timestamp where id=#{id} and task_status='DISPATCHING'") int expireTask(long id);
  @Update("update pw_dispatch_candidate set candidate_status='TIMEOUT' where task_id=#{id} and candidate_status='PENDING'") int timeoutCandidates(long id);
 }

@@ -1,5 +1,6 @@
 <template>
-  <view class="hall-page">
+  <PlayerDispatchList v-if="mode.isPlayerMode" ref="dispatchBoard" />
+  <view v-else class="hall-page">
     <view class="hall-heading">
       <view><text>服务大厅</text><label>按游戏与需求挑选陪玩服务</label></view>
       <view class="hall-seal">严选</view>
@@ -53,16 +54,25 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { nextTick, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { getCatalogProducts } from '@/api/customer'
 import { assetUrl } from '@/services/http'
+import { useAppModeStore } from '@/stores/app-mode'
+import PlayerDispatchList from '@/components/PlayerDispatchList.vue'
 import type { RecordData } from '@/types/api'
 
 const products = ref<RecordData[]>([])
 const loading = ref(false)
+const mode = useAppModeStore()
+const dispatchBoard = ref<InstanceType<typeof PlayerDispatchList>>()
 
-onShow(loadProducts)
+onShow(async () => {
+  mode.ensureAllowed()
+  await nextTick()
+  if (mode.isPlayerMode) return dispatchBoard.value?.load()
+  await loadProducts()
+})
 
 async function loadProducts() {
   loading.value = true

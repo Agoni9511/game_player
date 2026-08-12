@@ -27,17 +27,21 @@
         <text class="chevron" :class="{ expanded: userDetailsVisible }">⌄</text>
       </view>
       <view v-if="userDetailsVisible" class="user-details">
-        <view class="member-summary">
+        <view v-if="!mode.isPlayerMode" class="member-summary">
           <view class="member-mark">{{ memberShortName }}</view>
           <view class="member-copy"><view>{{ memberName }}</view><text>{{ memberBenefit }}</text></view>
           <view class="upgrade-button" @click.stop="goRecharge">{{ isMember ? '继续充值' : '去升级' }}</view>
         </view>
-        <view class="profile-facts">
+        <view v-else class="member-summary">
+          <view class="member-mark">陪</view><view class="member-copy"><view>{{ playerInfo.nickname || '陪玩师资料' }}</view><text>{{ playerStatusLabel }} · 评分 {{ Number(playerInfo.ratingScore || 0).toFixed(1) }}</text></view><view class="upgrade-button" @click.stop="goPlayerProfile">编辑资料</view>
+        </view>
+        <view v-if="!mode.isPlayerMode" class="profile-facts">
           <view><text>累计充值</text><label>¥{{ totalRecharge }}</label></view>
           <view><text>资料完整度</text><label>{{ profileCompletion }}%</label></view>
           <view><text>绑定手机</text><label>{{ maskedPhone }}</label></view>
           <view class="edit-profile" @click.stop="goUserProfile"><text>个人资料</text><label>编辑 ›</label></view>
         </view>
+        <view v-else class="profile-facts"><view><text>待响应邀请</text><label>{{ workbench.pendingDispatchCount || 0 }}</label></view><view><text>进行中订单</text><label>{{ workbench.activeOrderCount || 0 }}</label></view><view><text>累计服务</text><label>{{ workbench.completedOrderCount || 0 }} 单</label></view><view class="edit-profile" @click.stop="goPlayerSettlement"><text>我的收益</text><label>查看 ›</label></view></view>
       </view>
     </view>
 
@@ -75,11 +79,11 @@
           <view class="shortcut" @click="goDispatch"><view class="line-icon"><image src="/static/icons/hourglass.png" /></view><text>待抢订单</text></view>
           <view class="shortcut" @click="goPlayerOrders"><view class="line-icon"><image src="/static/icons/list.png" /></view><text>我的接单</text></view>
           <view class="shortcut" @click="goPlayerProfile"><view class="line-icon"><image src="/static/icons/profile.png" /></view><text>我的资料</text></view>
-          <view class="shortcut" @click="planned('收益中心')"><view class="line-icon"><image src="/static/icons/wallet.png" /></view><text>收益中心</text><text class="soon">规划中</text></view>
+          <view class="shortcut" @click="goPlayerSettlement"><view class="line-icon"><image src="/static/icons/wallet.png" /></view><text>收益中心</text></view>
         </view>
       </view>
 
-      <view class="section">
+      <view v-if="!mode.isPlayerMode" class="section">
         <view class="section-head"><text>我的服务</text></view>
         <view class="shortcut-grid service-grid">
           <view v-for="item in serviceEntries" :key="item.label" class="shortcut" @click="serviceAction(item.key, item.label)">
@@ -130,7 +134,7 @@ import { computed, ref } from 'vue'
 import { onHide, onShow } from '@dcloudio/uni-app'
 import { useAuthStore } from '@/stores/auth'
 import { useAppModeStore, type AppMode } from '@/stores/app-mode'
-import { getWorkbench } from '@/api/player'
+import { getPlayerOrders, getWorkbench } from '@/api/player'
 import { getCustomerOrderSummary, getCustomerWallet } from '@/api/customer'
 import { assetUrl } from '@/services/http'
 import { navigateToWithLogin, requireLogin } from '@/utils/auth-guard'
@@ -141,11 +145,24 @@ const mode = useAppModeStore()
 const workbench = ref<RecordData>({})
 const walletSummary = ref<RecordData>({})
 const orderSummary = ref<Record<string, number>>({})
+const playerOrderSummary = ref<Record<string, number>>({})
 const roleSheetVisible = ref(false)
 const userDetailsVisible = ref(false)
 onShow(async () => {
   if (auth.loggedIn && !auth.user) await auth.loadUser().catch(() => undefined)
-  if (mode.isPlayerMode) workbench.value = await getWorkbench().catch(() => ({}))
+  if (mode.isPlayerMode) {
+    const [bench, orders] = await Promise.all([
+      getWorkbench().catch(() => ({})),
+      getPlayerOrders().catch(() => ({ records: [], total: 0, current: 1, size: 20 })),
+    ])
+    workbench.value = bench
+    const playerOrders = orders.records as RecordData[]
+    playerOrderSummary.value = playerOrders.reduce<Record<string, number>>((summary, order) => {
+      const status = String(order.orderStatus || order.order_status || '')
+      if (status) summary[status] = (summary[status] || 0) + 1
+      return summary
+    }, {})
+  }
   if (auth.loggedIn && !mode.isPlayerMode) {
     const [wallet, summary] = await Promise.all([getCustomerWallet().catch(() => ({})), getCustomerOrderSummary().catch(() => ({}))])
     walletSummary.value = wallet
@@ -165,6 +182,7 @@ const roleLabels = computed(() => {
   return labels.length ? labels : ['暂无业务身份']
 })
 const playerInfo = computed(() => (workbench.value.player || {}) as RecordData)
+const playerStatusLabel = computed(() => ({ AVAILABLE:'接单中',BUSY:'服务中',OFFLINE:'休息中' } as Record<string,string>)[String(playerInfo.value.workStatus || '')] || '状态未知')
 const walletAccount = computed(() => (walletSummary.value.account || {}) as RecordData)
 const memberInfo = computed(() => (walletSummary.value.member || {}) as RecordData)
 const memberLevelCode = computed(() => String(memberInfo.value.levelCode || memberInfo.value.level_code || '').toUpperCase())
@@ -218,13 +236,13 @@ const customerOrderEntries = computed(() => [
   { label: '待确认', status: 'PENDING_CONFIRMATION', icon: '/static/icons/check.png', background: '#efe0d7', count: Number(orderSummary.value.PENDING_CONFIRM || 0) + Number(orderSummary.value.WAIT_CUSTOMER_CONFIRM || 0) },
   { label: '售后', status: 'AFTER_SALE', icon: '/static/icons/after-sale.png', background: '#dde4db', count: Number(orderSummary.value.AFTER_SALE || 0) },
 ])
-const playerOrderEntries = [
-  { label: '待开始', status: 'ASSIGNED', icon: '/static/icons/hourglass.png', background: '#eee2c8', count: 0 },
-  { label: '服务中', status: 'IN_SERVICE', icon: '/static/icons/gamepad.png', background: '#dce8dd', count: 0 },
-  { label: '待审核', status: 'REVIEW', icon: '/static/icons/check.png', background: '#efe0d7', count: 0 },
-  { label: '已完成', status: 'COMPLETED', icon: '/static/icons/orders-active.png', background: '#dfe6da', count: 0 },
-]
-const orderEntries = computed(() => mode.isPlayerMode ? playerOrderEntries : customerOrderEntries.value)
+const playerOrderEntries = computed(() => [
+  { label: '待开始', status: 'ASSIGNED', icon: '/static/icons/hourglass.png', background: '#eee2c8', count: Number(playerOrderSummary.value.ASSIGNED || 0) },
+  { label: '服务中', status: 'IN_SERVICE', icon: '/static/icons/gamepad.png', background: '#dce8dd', count: Number(playerOrderSummary.value.IN_SERVICE || 0) },
+  { label: '待审核', status: 'REVIEW', icon: '/static/icons/check.png', background: '#efe0d7', count: Number(playerOrderSummary.value.PENDING_CONFIRM || 0) + Number(playerOrderSummary.value.WAIT_CUSTOMER_CONFIRM || 0) },
+  { label: '已完成', status: 'COMPLETED', icon: '/static/icons/orders-active.png', background: '#dfe6da', count: Number(playerOrderSummary.value.COMPLETED || 0) },
+])
+const orderEntries = computed(() => mode.isPlayerMode ? playerOrderEntries.value : customerOrderEntries.value)
 const orderSectionTitle = computed(() => mode.isPlayerMode ? '我的服务单' : '我的订单')
 const orderSectionAllLabel = computed(() => mode.isPlayerMode ? '全部服务单' : '全部订单')
 const serviceEntries = [
@@ -258,6 +276,7 @@ function goWorkbench() { mode.switchMode('player'); switchMainTab('/pages/home/i
 function goDispatch() { navigateToWithLogin('/subpackages/player/dispatches', '登录后才能查看派单邀请') }
 function goPlayerOrders() { navigateToWithLogin('/subpackages/player/orders', '登录后才能查看服务订单') }
 function goPlayerProfile() { navigateToWithLogin('/subpackages/player/profile-edit', '登录后才能管理陪玩资料') }
+function goPlayerSettlement() { navigateToWithLogin('/subpackages/player/settlement', '登录后才能查看收益') }
 function goUserProfile() { navigateToWithLogin('/subpackages/customer/profile-edit', '登录后才能编辑个人资料') }
 function toggleUserDetails() {
   if (!auth.loggedIn) return goLogin()

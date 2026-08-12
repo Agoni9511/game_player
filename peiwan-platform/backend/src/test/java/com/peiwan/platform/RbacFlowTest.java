@@ -18,6 +18,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class RbacFlowTest {
   @Autowired MockMvc mvc; @Autowired ObjectMapper json; @Autowired JdbcTemplate db;
 
+  @Test void serviceExceptionReviewMenuBelongsToPlayerOperations() {
+    assertThat(db.queryForObject("select p.name from sys_menu m join sys_menu p on p.id=m.parent_id where m.name='ServiceExceptionManage'",String.class)).isEqualTo("PlayerOps");
+    assertThat(db.queryForObject("select count(*) from sys_role_menu rm join sys_role r on r.id=rm.role_id join sys_menu m on m.id=rm.menu_id where r.code='admin' and m.name='ServiceExceptionManage'",Long.class)).isEqualTo(1);
+  }
+
   @Test void completeRbacIsolationAndAuditFlow() throws Exception {
     String admin=login("admin","Test-Only-Password-9x!");
     long adminId=db.queryForObject("select id from sys_user where username='admin'",Long.class);
@@ -552,7 +557,8 @@ class RbacFlowTest {
     assertThat(db.queryForObject("select rate from pw_service_liability where order_id=? and liability_type='TRANSFER_COMPENSATION'",java.math.BigDecimal.class,orderId)).isEqualByComparingTo("0.1600");
     assertThat(db.queryForObject("select amount from pw_service_liability where order_id=? and liability_type='TRANSFER_COMPENSATION'",java.math.BigDecimal.class,orderId)).isEqualByComparingTo("15.84");
     assertThat(db.queryForObject("select available_balance from pw_player_account where player_id=?",java.math.BigDecimal.class,first)).isEqualByComparingTo(sourceBefore.subtract(new java.math.BigDecimal("15.84")));
-    assertThat(db.queryForObject("select count(*) from pw_service_penalty_ledger where order_id=? and player_id=? and direction='IN' and amount=15.84",Long.class,orderId,replacementPlayer)).isEqualTo(1);
+    assertThat(db.queryForObject("select count(*) from pw_service_penalty_ledger where order_id=? and player_id=? and direction='IN'",Long.class,orderId,replacementPlayer)).isZero();
+    assertThat(db.queryForObject("select count(*) from pw_platform_ledger where order_id=? and business_type='SERVICE_TRANSFER_PENALTY' and direction='IN' and amount=15.84",Long.class,orderId)).isEqualTo(1);
   }
 
   @Test void approvedAbortEndsServiceAndRefundsPaidOrder() throws Exception {

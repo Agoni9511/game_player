@@ -1,12 +1,20 @@
 .tools/
 .codex-logs/
+runtime-logs/
+*.log
+*.log.*
+*.err
+*.out
 admin-web/node_modules/
 admin-web/dist/
 admin-web/package-lock.json
 admin-web/src/types/import/auto-import.json
+admin-web/src/types/import/components.d.ts
 backend/data/
 backend/target/
 miniapp/.vscode/
+miniapp/node_modules/
+miniapp/dist/
 miniapp/project.private.config.json
 tmp-maven-settings.xml
 
