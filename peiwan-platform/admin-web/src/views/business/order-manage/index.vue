@@ -19,7 +19,7 @@
         <ElTableColumn prop="productName" label="商品" min-width="170" show-overflow-tooltip />
         <ElTableColumn label="下单用户" min-width="130"><template #default="{ row }">{{ row.customerNickname || row.customerUsername }}</template></ElTableColumn>
         <ElTableColumn label="应付金额" width="110"><template #default="{ row }"><span class="text-red-500">¥ {{ money(row.payableAmount) }}</span></template></ElTableColumn>
-        <ElTableColumn label="陪玩师" min-width="110"><template #default="{ row }">{{ row.playerName || '-' }}</template></ElTableColumn>
+        <ElTableColumn label="接单成员" min-width="120"><template #default="{ row }"><ElTag v-if="row.memberCount" type="success" effect="plain">{{ row.memberCount }}/{{ row.requiredPlayerCount || 1 }} 人</ElTag><span v-else>-</span></template></ElTableColumn>
         <ElTableColumn label="状态" width="100"><template #default="{ row }"><ElTag :type="statusMeta[row.orderStatus]?.type">{{ statusMeta[row.orderStatus]?.text || row.orderStatus }}</ElTag></template></ElTableColumn>
         <ElTableColumn prop="createTime" label="创建时间" min-width="165" />
         <ElTableColumn label="操作" width="80" fixed="right"><template #default="{ row }"><ArtButtonMore :list="actions(row)" @click="(i) => action(i.key, row)" /></template></ElTableColumn>
@@ -57,10 +57,14 @@
           <ElDescriptionsItem label="电话">{{ detail.contactPhone || '-' }}</ElDescriptionsItem>
           <ElDescriptionsItem label="应付金额">¥ {{ money(detail.payableAmount) }}</ElDescriptionsItem>
           <ElDescriptionsItem label="实付金额">¥ {{ money(detail.paidAmount) }}</ElDescriptionsItem>
-          <ElDescriptionsItem label="陪玩师" :span="2">{{ detail.playerName || '尚未派单' }}</ElDescriptionsItem>
+          <ElDescriptionsItem label="计价方式">{{ detail.pricingMode==='PLAYER_LEVEL'?'陪玩等级价':'SKU 固定价' }}</ElDescriptionsItem>
+          <ElDescriptionsItem label="要求等级">{{ detail.playerLevelName || '未指定（SKU 兜底）' }}</ElDescriptionsItem>
+          <ElDescriptionsItem label="接单进度" :span="2">{{ detail.memberCount || 0 }}/{{ detail.requiredPlayerCount || 1 }} 人</ElDescriptionsItem>
         </ElDescriptions>
+        <h4 class="my-4">订单成员</h4>
+        <ElTable :data="detail.members || []" border empty-text="暂无陪玩师接单"><ElTableColumn label="陪玩师" min-width="150"><template #default="{row}"><div class="flex items-center gap-2"><ElAvatar :size="28" :src="row.avatarUrl"/>{{row.playerName}}（{{row.playerNo}}）</div></template></ElTableColumn><ElTableColumn label="成员状态" width="105"><template #default="{row}">{{memberText[row.memberStatus] || row.memberStatus}}</template></ElTableColumn><ElTableColumn label="接单来源" width="95"><template #default="{row}">{{sourceText[row.joinSource] || row.joinSource}}</template></ElTableColumn><ElTableColumn prop="joinedAt" label="接单时间" min-width="165"/></ElTable>
         <h4 class="my-4">商品快照</h4>
-        <ElTable :data="detail.items" border><ElTableColumn prop="productName" label="商品" /><ElTableColumn prop="skuName" label="规格" /><ElTableColumn label="单价" width="90"><template #default="{ row }">¥ {{ money(row.unitPrice) }}</template></ElTableColumn><ElTableColumn prop="quantity" label="数量" width="65" /></ElTable>
+        <ElTable :data="detail.items" border><ElTableColumn prop="productName" label="商品" /><ElTableColumn prop="skuName" label="规格" /><ElTableColumn label="单价" width="90"><template #default="{ row }">¥ {{ money(row.unitPrice) }}</template></ElTableColumn><ElTableColumn label="价格来源" width="105"><template #default="{row}">{{row.pricingRuleId?'等级规则':'SKU 兜底'}}</template></ElTableColumn><ElTableColumn prop="quantity" label="数量" width="65" /></ElTable>
         <h4 class="my-4">用户游戏资料</h4>
         <ElDescriptions v-if="detail.gameProfile" :column="2" border><ElDescriptionsItem label="游戏">{{ detail.gameProfile.gameName }}</ElDescriptionsItem><ElDescriptionsItem label="区服">{{ detail.gameProfile.serverName || '-' }}</ElDescriptionsItem><ElDescriptionsItem label="账号">{{ detail.gameProfile.gameAccount || '-' }}</ElDescriptionsItem><ElDescriptionsItem label="昵称">{{ detail.gameProfile.gameNickname || '-' }}</ElDescriptionsItem><ElDescriptionsItem label="服务要求" :span="2">{{ detail.gameProfile.extraRequirement || '-' }}</ElDescriptionsItem></ElDescriptions>
         <h4 class="my-4">状态记录</h4>
@@ -83,7 +87,9 @@
   const store = useUserStore(), has = (c: string) => store.info.roles?.includes('admin') || store.info.buttons?.includes(c)
   const loading = ref(false), saving = ref(false), rows = ref<Api.Business.Order[]>([]), total = ref(0), createVisible = ref(false), detailVisible = ref(false), assignVisible = ref(false), detail = ref<Api.Business.Order>(), customers = ref<any[]>([]), players = ref<any[]>([]), products = ref<Api.Business.Product[]>([]), productDetail = ref<Api.Business.Product>(), currentOrder = ref<any>()
   const query = reactive<any>({ current: 1, size: 20, orderNo: '', customerName: '', orderStatus: '' }), createForm = reactive<any>({}), assignForm = reactive<any>({})
-  const statusMeta: any = { PENDING_PAYMENT: { text: '待支付', type: 'warning' }, WAIT_ASSIGN: { text: '待派单', type: 'primary' }, ASSIGNED: { text: '已派单', type: 'primary' }, IN_SERVICE: { text: '服务中', type: 'success' }, COMPLETED: { text: '已完成', type: 'success' }, CANCELLED: { text: '已取消', type: 'info' } }
+  const statusMeta: any = { PENDING_PAYMENT: { text: '待支付', type: 'warning' }, WAIT_ASSIGN: { text: '待接单', type: 'primary' }, ASSIGNED: { text: '成员已满', type: 'primary' }, IN_SERVICE: { text: '服务中', type: 'success' }, COMPLETED: { text: '已完成', type: 'success' }, CANCELLED: { text: '已取消', type: 'info' } }
+  const memberText: Record<string, string> = { ACCEPTED: '已接单', IN_SERVICE: '服务中', COMPLETED: '已完成', CANCELLED: '已取消' }
+  const sourceText: Record<string, string> = { ADMIN: '后台分配', DIRECT: '指定邀请', GRAB: '公开抢单', MIGRATION: '历史迁移' }
   const money = (v: any) => Number(v || 0).toFixed(2), enabledSkus = computed<any[]>(() => productDetail.value?.skus?.filter((x) => x.enabled) || [])
   async function load() { loading.value = true; try { const d = await fetchOrders(query); rows.value = d.records; total.value = d.total } finally { loading.value = false } }
   function search() { query.current = 1; load() }

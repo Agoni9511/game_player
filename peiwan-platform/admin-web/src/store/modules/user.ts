@@ -165,7 +165,7 @@ export const useUserStore = defineStore(
       // 清空主页路径
       useMenuStore().setHomePath('')
       // 重置路由状态
-      resetRouterState(500)
+      resetRouterState()
       // 跳转到登录页，携带当前路由作为 redirect 参数
       const currentRoute = router.currentRoute.value
       const redirect = currentRoute.path !== '/login' ? currentRoute.fullPath : undefined

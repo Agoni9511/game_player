@@ -1,4 +1,6 @@
 export const customerOrderStatusLabels: Record<string, string> = {
+  ACTIVE_SERVICE: '服务中',
+  PENDING_CONFIRMATION: '待确认',
   PENDING_PAYMENT: '待付款',
   WAIT_ASSIGN: '待接单',
   ASSIGNED: '已派单',

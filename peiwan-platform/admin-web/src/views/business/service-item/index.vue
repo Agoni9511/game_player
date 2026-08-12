@@ -65,10 +65,10 @@
           :total="total"
           @change="load"
           layout="total, sizes, prev, pager, next" /></div></ElCard
-    ><ElDialog v-model="visible" :title="form.id ? '编辑基础服务' : '新增基础服务'" width="560px"
+    ><ElDialog v-model="visible" :title="form.id ? '编辑基础服务' : '新增基础服务'" width="900px"
       ><ElForm label-width="90px"
         ><ElFormItem label="所属游戏" required
-          ><ElSelect v-model="form.gameId" class="w-full"
+          ><ElSelect v-model="form.gameId" class="w-full" @change="gameChanged"
             ><ElOption
               v-for="g in games"
               :key="g.id"
@@ -87,6 +87,13 @@
           ><ElInput v-model="form.description" type="textarea" :rows="3" /></ElFormItem
         ><ElFormItem label="排序"><ElInputNumber v-model="form.sortNo" :min="0" /></ElFormItem
         ><ElFormItem label="启用"><ElSwitch v-model="form.enabled" /></ElFormItem></ElForm
+      ><div class="flex items-center justify-between mb-3"><div><span class="font-medium">陪玩等级单价</span><span class="ml-2 text-xs text-gray-400">这里配置每人每小时 / 每局 / 每单的基础价格</span></div><ElButton plain type="primary" @click="addPricingUnit">新增计价单位</ElButton></div>
+      <ElTable :data="pricingUnits" border>
+        <ElTableColumn label="计价单位" width="130"><template #default="{row}"><ElSelect v-model="row.unitType"><ElOption v-for="u in unusedUnits(row.unitType)" :key="u.value" :label="u.label" :value="u.value" /></ElSelect></template></ElTableColumn>
+        <ElTableColumn v-for="level in playerLevels" :key="level.id" :label="`${level.levelName}单价`" min-width="145"><template #default="{row}"><ElInputNumber v-model="priceEntry(row.unitType,level.id).price" :min="0" :precision="2" :controls="false" placeholder="未配置" class="!w-full" /></template></ElTableColumn>
+        <ElTableColumn label="操作" width="70"><template #default="{$index}"><ElButton link type="danger" @click="pricingUnits.splice($index,1)">删除</ElButton></template></ElTableColumn>
+      </ElTable>
+      <ElEmpty v-if="!playerLevels.length" :image-size="50" description="该游戏暂无陪玩等级，请先在陪玩等级中新增" />
       ><template #footer
         ><ElButton @click="visible = false">取消</ElButton
         ><ElButton type="primary" @click="save">保存</ElButton></template
@@ -102,7 +109,8 @@
     updateService,
     setServiceStatus,
     deleteService,
-    fetchGameOptions
+    fetchGameOptions,
+    fetchPlayerLevels
   } from '@/api/business-manage'
   import { useUserStore } from '@/store/modules/user'
   import { generateBusinessCode } from '@/utils/business-code'
@@ -111,6 +119,8 @@
     loading = ref(false),
     rows = ref<Api.Business.ServiceItem[]>([]),
     games = ref<Api.Business.Game[]>([]),
+    playerLevels = ref<any[]>([]),
+    pricingUnits = ref<any[]>([]),
     total = ref(0),
     visible = ref(false),
     query = reactive<any>({
@@ -159,7 +169,12 @@
     query.serviceType = ''
     search()
   }
-  function open(r?: any) {
+  const units = [{value:'HOUR',label:'小时'},{value:'GAME',label:'局'},{value:'ORDER',label:'单'}]
+  function unusedUnits(current:string){return units.filter((u)=>u.value===current||!pricingUnits.value.some((x)=>x.unitType===u.value))}
+  function addPricingUnit(){const next=units.find((u)=>!pricingUnits.value.some((x)=>x.unitType===u.value));if(next)pricingUnits.value.push({unitType:next.value});else ElMessage.info('小时、局、单均已添加')}
+  function priceEntry(unitType:string,playerLevelId:number){let row=(form.levelPrices||[]).find((x:any)=>x.unitType===unitType&&Number(x.playerLevelId)===Number(playerLevelId));if(!row){row={unitType,playerLevelId,price:undefined,marketPrice:undefined,enabled:true};(form.levelPrices||(form.levelPrices=[])).push(row)}return row}
+  async function gameChanged(){form.levelPrices=[];pricingUnits.value=[];playerLevels.value=form.gameId?await fetchPlayerLevels(form.gameId):[];addPricingUnit()}
+  async function open(r?: any) {
     Object.assign(
       form,
       r || {
@@ -170,14 +185,20 @@
         serviceType: 'COMPANION',
         description: '',
         sortNo: 0,
-        enabled: true
+        enabled: true,
+        levelPrices: []
       }
     )
+    playerLevels.value = form.gameId ? await fetchPlayerLevels(form.gameId) : []
+    pricingUnits.value = [...new Set((form.levelPrices || []).map((x:any)=>x.unitType))].map((unitType)=>({unitType}))
+    if (!pricingUnits.value.length) addPricingUnit()
     visible.value = true
   }
   async function save() {
     if (!form.gameId || !form.serviceCode || !form.serviceName)
       return ElMessage.warning('请填写必填项')
+    const activeUnits=new Set(pricingUnits.value.map((x)=>x.unitType))
+    form.levelPrices=(form.levelPrices||[]).filter((x:any)=>activeUnits.has(x.unitType)&&x.price!=null)
     form.id ? await updateService(form.id, form) : await createService(form)
     visible.value = false
     load()

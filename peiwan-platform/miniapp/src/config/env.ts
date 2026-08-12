@@ -1,5 +1,5 @@
 const defaults = {
-  development: 'http://192.168.1.114:8080',
+  development: 'http://127.0.0.1:8080',
   production: 'https://api.example.com',
 } as const
 

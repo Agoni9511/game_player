@@ -143,7 +143,7 @@ class RbacFlowTest {
   @Test void productSpuSkuAndSaleRules() throws Exception {
     String admin=login("admin","Test-Only-Password-9x!");
     mvc.perform(get("/api/business/product/list").header("Authorization",admin).param("productType","SERVICE"))
-      .andExpect(status().isOk()).andExpect(jsonPath("$.data.total").value(6))
+        .andExpect(status().isOk()).andExpect(jsonPath("$.data.total").value(9))
       .andExpect(jsonPath("$.data.records[0].skuCount").isNumber());
     long seeded=db.queryForObject("select id from pw_product where product_code='delta-escort-experience'",Long.class);
     mvc.perform(delete("/api/business/product/{id}",seeded).header("Authorization",admin))
@@ -180,6 +180,29 @@ class RbacFlowTest {
       .andExpect(status().isBadRequest()).andExpect(jsonPath("$.msg").value("平台套餐至少包含两个基础服务"));
   }
 
+  @Test void customerCatalogSupportsServiceLevelPriceAndSortFilters() throws Exception {
+    String token=login("admin","Test-Only-Password-9x!");
+    long gameId=db.queryForObject("select id from pw_game where game_code='valorant'",Long.class);
+    long levelId=db.queryForObject("select id from pw_player_level where game_id=? and level_code='PRO'",Long.class,gameId);
+
+    mvc.perform(get("/api/customer/catalog/player-levels").header("Authorization",token).param("gameId",String.valueOf(gameId)))
+      .andExpect(status().isOk()).andExpect(jsonPath("$.data.length()").value(3));
+    mvc.perform(get("/api/customer/catalog/products").header("Authorization",token).param("gameId",String.valueOf(gameId))
+        .param("serviceType","TEACHING").param("playerLevelId",String.valueOf(levelId)))
+      .andExpect(status().isOk()).andExpect(jsonPath("$.data.total").isNumber());
+
+    var response=mvc.perform(get("/api/customer/catalog/products").header("Authorization",token).param("minPrice","50")
+        .param("maxPrice","170").param("sort","PRICE_ASC").param("size","100"))
+      .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+    JsonNode records=json.readTree(response).at("/data/records");
+    assertThat(records).isNotEmpty();
+    double previous=0;
+    for(JsonNode record:records){double price=record.path("minPrice").asDouble();assertThat(price).isBetween(50d,170d);assertThat(price).isGreaterThanOrEqualTo(previous);previous=price;}
+
+    mvc.perform(get("/api/customer/catalog/products").header("Authorization",token).param("sort","POPULAR"))
+      .andExpect(status().isBadRequest()).andExpect(jsonPath("$.msg").value("商品排序方式无效"));
+  }
+
   @Test void orderSnapshotAndStatusMachine() throws Exception {
     String admin=login("admin","Test-Only-Password-9x!");
     long customerId=db.queryForObject("select id from sys_user where username='admin'",Long.class);
@@ -208,6 +231,23 @@ class RbacFlowTest {
     assertThat(db.queryForObject("select commission_amount from pw_player_earning where order_id=?",java.math.BigDecimal.class,orderId)).isEqualByComparingTo("47.04");
     assertThat(db.queryForObject("select player_amount from pw_player_earning where order_id=?",java.math.BigDecimal.class,orderId)).isEqualByComparingTo("120.96");
     mvc.perform(get("/api/business/order/list")).andExpect(status().isUnauthorized());
+  }
+
+  @Test void serviceOrderUsesPlayerLevelPriceAndSnapshotsLevel() throws Exception {
+    String admin=login("admin","Test-Only-Password-9x!");
+    long customerId=db.queryForObject("select id from sys_user where username='admin'",Long.class);
+    long skuId=db.queryForObject("select id from pw_product_sku where sku_code='delta-escort-1game'",Long.class);
+    long levelId=db.queryForObject("select l.id from pw_player_level l join pw_product p on p.game_id=l.game_id join pw_product_sku k on k.product_id=p.id where k.id=? and l.level_code='PRO'",Long.class,skuId);
+    var expected=db.queryForObject("select sp.price*k.unit_count from pw_product_sku k join pw_product_service ps on ps.product_id=k.product_id join pw_service_level_price sp on sp.service_id=ps.service_id and sp.unit_type=k.unit_type where k.id=? and sp.player_level_id=?",java.math.BigDecimal.class,skuId,levelId);
+    String body="{\"customerId\":"+customerId+",\"skuId\":"+skuId+",\"playerLevelId\":"+levelId+",\"quantity\":1,\"contactName\":\"等级价测试\",\"contactPhone\":\"13800000000\",\"gameAccount\":\"level-test\",\"gameNickname\":\"等级测试\"}";
+    var created=mvc.perform(post("/api/business/order").header("Authorization",admin).contentType(MediaType.APPLICATION_JSON).content(body))
+      .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+    long orderId=json.readTree(created).at("/data/id").asLong();
+    assertThat(db.queryForObject("select unit_price from pw_order_item where order_id=?",java.math.BigDecimal.class,orderId)).isEqualByComparingTo(expected);
+    assertThat(db.queryForObject("select player_level_code from pw_order where id=?",String.class,orderId)).isEqualTo("PRO");
+    assertThat(db.queryForObject("select pricing_rule_id from pw_order_item where order_id=?",Long.class,orderId)).isNotNull();
+    fundAndPay(admin,orderId,"level-auto-dispatch");
+    assertThat(db.queryForObject("select dispatch_mode from pw_dispatch_task where order_id=?",String.class,orderId)).isEqualTo("GRAB");
   }
 
   @Test void dispatchCandidateAndSingleWinnerRules() throws Exception {
@@ -241,6 +281,45 @@ class RbacFlowTest {
     mvc.perform(get("/api/business/dispatch/list")).andExpect(status().isUnauthorized());
   }
 
+  @Test void multiPlayerOrderFillsOnlyAfterAllMembersJoin() throws Exception {
+    String admin=login("admin","Test-Only-Password-9x!");
+    long customerId=db.queryForObject("select id from sys_user where username='admin'",Long.class);
+    long skuId=db.queryForObject("select id from pw_product_sku where sku_code='delta-escort-1game'",Long.class);
+    long orderId=json.readTree(mvc.perform(post("/api/business/order").header("Authorization",admin).contentType(MediaType.APPLICATION_JSON)
+      .content("{\"customerId\":"+customerId+",\"skuId\":"+skuId+",\"quantity\":1,\"gameAccount\":\"multi-member-test\"}"))
+      .andExpect(status().isOk()).andReturn().getResponse().getContentAsString()).at("/data/id").asLong();
+    fundAndPay(admin,orderId,"multi-member-pay");
+    db.update("update pw_order set required_player_count=2 where id=?",orderId);
+    long gameId=db.queryForObject("select game_id from pw_order_game_profile where order_id=?",Long.class,orderId);
+    Long levelId=db.queryForObject("select requested_player_level_id from pw_order where id=?",Long.class,orderId);
+    db.update("update pw_player set work_status='AVAILABLE',max_active_orders=5 where player_no in('DEMO-PW-001','DEMO-PW-002')");
+    db.update("update pw_player_game set price_level_id=?,audit_status='APPROVED',enabled=true where game_id=? and player_id in(select id from pw_player where player_no in('DEMO-PW-001','DEMO-PW-002'))",levelId,gameId);
+    long taskId=json.readTree(mvc.perform(post("/api/business/dispatch").header("Authorization",admin).contentType(MediaType.APPLICATION_JSON)
+      .content("{\"orderId\":"+orderId+",\"dispatchMode\":\"GRAB\"}"))
+      .andExpect(status().isOk()).andReturn().getResponse().getContentAsString()).at("/data/id").asLong();
+    var candidates=db.queryForList("select player_id from pw_dispatch_candidate where task_id=? order by id",Long.class,taskId);
+    assertThat(candidates).hasSizeGreaterThanOrEqualTo(2);
+    long first=candidates.get(0),second=candidates.get(1);
+
+    mvc.perform(put("/api/business/dispatch/{id}/respond",taskId).header("Authorization",admin).contentType(MediaType.APPLICATION_JSON)
+      .content("{\"playerId\":"+first+",\"action\":\"ACCEPT\"}"))
+      .andExpect(status().isOk());
+    assertThat(db.queryForObject("select order_status from pw_order where id=?",String.class,orderId)).isEqualTo("WAIT_ASSIGN");
+    assertThat(db.queryForObject("select count(*) from pw_order_member where order_id=?",Long.class,orderId)).isEqualTo(1);
+    assertThat(db.queryForObject("select task_status from pw_dispatch_task where id=?",String.class,taskId)).isEqualTo("DISPATCHING");
+
+    mvc.perform(put("/api/business/dispatch/{id}/respond",taskId).header("Authorization",admin).contentType(MediaType.APPLICATION_JSON)
+      .content("{\"playerId\":"+second+",\"action\":\"ACCEPT\"}"))
+      .andExpect(status().isOk());
+    assertThat(db.queryForObject("select order_status from pw_order where id=?",String.class,orderId)).isEqualTo("ASSIGNED");
+    assertThat(db.queryForObject("select task_status from pw_dispatch_task where id=?",String.class,taskId)).isEqualTo("ACCEPTED");
+    assertThat(db.queryForObject("select assigned_player_id from pw_order where id=?",Long.class,orderId)).isEqualTo(first);
+    assertThat(db.queryForObject("select count(*) from pw_order_member where order_id=?",Long.class,orderId)).isEqualTo(2);
+    mvc.perform(get("/api/business/order/{id}",orderId).header("Authorization",admin))
+      .andExpect(status().isOk()).andExpect(jsonPath("$.data.requiredPlayerCount").value(2))
+      .andExpect(jsonPath("$.data.memberCount").value(2)).andExpect(jsonPath("$.data.members.length()").value(2));
+  }
+
   @Test void walletRechargeIsIdempotentAndProducesImmutableLedger() throws Exception {
     String admin=login("admin","Test-Only-Password-9x!");
     long adminId=db.queryForObject("select id from sys_user where username='admin'",Long.class);
@@ -249,6 +328,7 @@ class RbacFlowTest {
 
     java.math.BigDecimal cashBefore=db.queryForObject("select coalesce((select cash_balance from pw_wallet_account where owner_type='USER' and owner_id=?),0)",java.math.BigDecimal.class,adminId);
     java.math.BigDecimal bonusBefore=db.queryForObject("select coalesce((select bonus_balance from pw_wallet_account where owner_type='USER' and owner_id=?),0)",java.math.BigDecimal.class,adminId);
+    java.math.BigDecimal rechargeBefore=db.queryForObject("select coalesce((select total_recharge_amount from pw_user_member where user_id=?),0)",java.math.BigDecimal.class,adminId);
     mvc.perform(post("/api/customer/wallet/recharge").header("Authorization",admin).contentType(MediaType.APPLICATION_JSON)
       .content("{\"planId\":"+planId+",\"requestNo\":\""+requestNo+"\"}"))
       .andExpect(status().isOk()).andExpect(jsonPath("$.data.duplicated").value(false));
@@ -262,6 +342,11 @@ class RbacFlowTest {
     assertThat(db.queryForObject("select cash_balance from pw_wallet_account where owner_type='USER' and owner_id=?",java.math.BigDecimal.class,adminId)).isEqualByComparingTo(cashBefore.add(new java.math.BigDecimal("500.00")));
     assertThat(db.queryForObject("select bonus_balance from pw_wallet_account where owner_type='USER' and owner_id=?",java.math.BigDecimal.class,adminId)).isEqualByComparingTo(bonusBefore.add(new java.math.BigDecimal("40.00")));
     assertThat(db.queryForObject("select count(*) from pw_user_member where user_id=?",Long.class,adminId)).isEqualTo(1);
+    var rechargeAfter=rechargeBefore.add(new java.math.BigDecimal("500.00"));
+    assertThat(db.queryForObject("select total_recharge_amount from pw_user_member where user_id=?",java.math.BigDecimal.class,adminId)).isEqualByComparingTo(rechargeAfter);
+    assertThat(db.queryForObject("select l.id from pw_member_level l where l.enabled=true and l.min_recharge_amount<=? order by l.min_recharge_amount desc,l.level_no desc limit 1",Long.class,rechargeAfter))
+      .isEqualTo(db.queryForObject("select level_id from pw_user_member where user_id=?",Long.class,adminId));
+    assertThat(db.queryForObject("select count(*) from pw_member_level where discount_rate<>1",Long.class)).isZero();
   }
 
   @Test void orderWalletPaymentIsIdempotentAndCancellationRefundsOriginalBalances() throws Exception {
@@ -274,9 +359,12 @@ class RbacFlowTest {
     recharge(admin,"payment-refund-fund");
     java.math.BigDecimal cashBefore=db.queryForObject("select cash_balance from pw_wallet_account where owner_type='USER' and owner_id=?",java.math.BigDecimal.class,uid);
     java.math.BigDecimal bonusBefore=db.queryForObject("select bonus_balance from pw_wallet_account where owner_type='USER' and owner_id=?",java.math.BigDecimal.class,uid);
+    java.math.BigDecimal payable=db.queryForObject("select payable_amount from pw_order where id=?",java.math.BigDecimal.class,orderId);
     String requestNo="pay-refund-"+orderId;
     mvc.perform(post("/api/customer/orders/{id}/pay",orderId).header("Authorization",admin).contentType(MediaType.APPLICATION_JSON).content("{\"requestNo\":\""+requestNo+"\"}"))
-      .andExpect(status().isOk()).andExpect(jsonPath("$.data.duplicated").value(false));
+      .andExpect(status().isOk()).andExpect(jsonPath("$.data.duplicated").value(false))
+      .andExpect(jsonPath("$.data.cashAmount").value(payable.doubleValue()))
+      .andExpect(jsonPath("$.data.bonusAmount").value(0));
     mvc.perform(post("/api/customer/orders/{id}/pay",orderId).header("Authorization",admin).contentType(MediaType.APPLICATION_JSON).content("{\"requestNo\":\""+requestNo+"\"}"))
       .andExpect(status().isOk()).andExpect(jsonPath("$.data.duplicated").value(true));
     mvc.perform(put("/api/customer/orders/{id}/cancel",orderId).header("Authorization",admin).contentType(MediaType.APPLICATION_JSON).content("{\"reason\":\"测试退款\"}"))
@@ -286,6 +374,84 @@ class RbacFlowTest {
     assertThat(db.queryForObject("select bonus_balance from pw_wallet_account where owner_type='USER' and owner_id=?",java.math.BigDecimal.class,uid)).isEqualByComparingTo(bonusBefore);
     String paymentNo=db.queryForObject("select payment_no from pw_order_payment where order_id=?",String.class,orderId);
     assertThat(db.queryForObject("select count(*) from pw_wallet_transaction where business_no=? and business_type in('ORDER_PAYMENT','ORDER_REFUND')",Long.class,paymentNo)).isGreaterThanOrEqualTo(2);
+  }
+
+  @Test void walletPaymentUsesCashBeforeBonusAndRefundsEachBalance() throws Exception {
+    String admin=login("admin","Test-Only-Password-9x!");
+    long uid=db.queryForObject("select id from sys_user where username='admin'",Long.class);
+    long skuId=db.queryForObject("select id from pw_product_sku where sku_code='delta-escort-1game'",Long.class);
+    long orderId=json.readTree(mvc.perform(post("/api/business/order").header("Authorization",admin).contentType(MediaType.APPLICATION_JSON)
+      .content("{\"customerId\":"+uid+",\"skuId\":"+skuId+",\"quantity\":1,\"gameAccount\":\"mixed-balance-test\"}"))
+      .andExpect(status().isOk()).andReturn().getResponse().getContentAsString()).at("/data/id").asLong();
+    recharge(admin,"mixed-balance-fund-"+orderId);
+    java.math.BigDecimal originalCash=db.queryForObject("select cash_balance from pw_wallet_account where owner_type='USER' and owner_id=?",java.math.BigDecimal.class,uid);
+    java.math.BigDecimal originalBonus=db.queryForObject("select bonus_balance from pw_wallet_account where owner_type='USER' and owner_id=?",java.math.BigDecimal.class,uid);
+    java.math.BigDecimal payable=db.queryForObject("select payable_amount from pw_order where id=?",java.math.BigDecimal.class,orderId);
+    java.math.BigDecimal cash=new java.math.BigDecimal("10.00"),bonus=payable;
+    try {
+      db.update("update pw_wallet_account set cash_balance=?,bonus_balance=? where owner_type='USER' and owner_id=?",cash,bonus,uid);
+      String requestNo="mixed-balance-pay-"+orderId;
+      mvc.perform(post("/api/customer/orders/{id}/pay",orderId).header("Authorization",admin).contentType(MediaType.APPLICATION_JSON).content("{\"requestNo\":\""+requestNo+"\"}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.cashAmount").value(cash.doubleValue()))
+        .andExpect(jsonPath("$.data.bonusAmount").value(payable.subtract(cash).doubleValue()));
+      assertThat(db.queryForObject("select cash_balance from pw_wallet_account where owner_type='USER' and owner_id=?",java.math.BigDecimal.class,uid)).isEqualByComparingTo("0");
+      assertThat(db.queryForObject("select bonus_balance from pw_wallet_account where owner_type='USER' and owner_id=?",java.math.BigDecimal.class,uid)).isEqualByComparingTo(cash);
+      mvc.perform(put("/api/customer/orders/{id}/cancel",orderId).header("Authorization",admin).contentType(MediaType.APPLICATION_JSON).content("{\"reason\":\"混合余额退款测试\"}"))
+        .andExpect(status().isOk());
+      assertThat(db.queryForObject("select cash_balance from pw_wallet_account where owner_type='USER' and owner_id=?",java.math.BigDecimal.class,uid)).isEqualByComparingTo(cash);
+      assertThat(db.queryForObject("select bonus_balance from pw_wallet_account where owner_type='USER' and owner_id=?",java.math.BigDecimal.class,uid)).isEqualByComparingTo(bonus);
+    } finally {
+      db.update("update pw_wallet_account set cash_balance=?,bonus_balance=? where owner_type='USER' and owner_id=?",originalCash,originalBonus,uid);
+    }
+  }
+
+  @Test void concurrentPaymentRequestsCreateOnlyOnePayment() throws Exception {
+    String admin=login("admin","Test-Only-Password-9x!");
+    long uid=db.queryForObject("select id from sys_user where username='admin'",Long.class);
+    long skuId=db.queryForObject("select id from pw_product_sku where sku_code='delta-escort-1game'",Long.class);
+    long orderId=json.readTree(mvc.perform(post("/api/business/order").header("Authorization",admin).contentType(MediaType.APPLICATION_JSON)
+      .content("{\"customerId\":"+uid+",\"skuId\":"+skuId+",\"quantity\":1,\"gameAccount\":\"concurrent-payment-test\"}"))
+      .andExpect(status().isOk()).andReturn().getResponse().getContentAsString()).at("/data/id").asLong();
+    recharge(admin,"concurrent-payment-fund-"+orderId);
+
+    var ready=new java.util.concurrent.CountDownLatch(2);
+    var start=new java.util.concurrent.CountDownLatch(1);
+    var pool=java.util.concurrent.Executors.newFixedThreadPool(2);
+    try {
+      var first=pool.submit(()->{ready.countDown();start.await();return mvc.perform(post("/api/customer/orders/{id}/pay",orderId).header("Authorization",admin).contentType(MediaType.APPLICATION_JSON).content("{\"requestNo\":\"concurrent-a-"+orderId+"\"}")).andReturn();});
+      var second=pool.submit(()->{ready.countDown();start.await();return mvc.perform(post("/api/customer/orders/{id}/pay",orderId).header("Authorization",admin).contentType(MediaType.APPLICATION_JSON).content("{\"requestNo\":\"concurrent-b-"+orderId+"\"}")).andReturn();});
+      assertThat(ready.await(5,java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+      start.countDown();
+      assertThat(first.get(15,java.util.concurrent.TimeUnit.SECONDS).getResponse().getStatus()).isEqualTo(200);
+      assertThat(second.get(15,java.util.concurrent.TimeUnit.SECONDS).getResponse().getStatus()).isEqualTo(200);
+    } finally {
+      pool.shutdownNow();
+    }
+    assertThat(db.queryForObject("select count(*) from pw_order_payment where order_id=?",Long.class,orderId)).isEqualTo(1);
+    assertThat(db.queryForObject("select order_status from pw_order where id=?",String.class,orderId)).isEqualTo("WAIT_ASSIGN");
+    mvc.perform(put("/api/customer/orders/{id}/cancel",orderId).header("Authorization",admin).contentType(MediaType.APPLICATION_JSON).content("{\"reason\":\"并发支付测试清理\"}"))
+      .andExpect(status().isOk());
+  }
+
+  @Test void mockWechatPaymentDoesNotRequireOrDebitWallet() throws Exception {
+    String admin=login("admin","Test-Only-Password-9x!");
+    long uid=db.queryForObject("select id from sys_user where username='admin'",Long.class);
+    long skuId=db.queryForObject("select id from pw_product_sku where sku_code='delta-escort-1game'",Long.class);
+    long orderId=json.readTree(mvc.perform(post("/api/business/order").header("Authorization",admin).contentType(MediaType.APPLICATION_JSON)
+      .content("{\"customerId\":"+uid+",\"skuId\":"+skuId+",\"quantity\":1,\"gameAccount\":\"mock-wechat-test\"}"))
+      .andExpect(status().isOk()).andReturn().getResponse().getContentAsString()).at("/data/id").asLong();
+    java.math.BigDecimal cashBefore=db.queryForObject("select cash_balance from pw_wallet_account where owner_type='USER' and owner_id=?",java.math.BigDecimal.class,uid);
+    java.math.BigDecimal bonusBefore=db.queryForObject("select bonus_balance from pw_wallet_account where owner_type='USER' and owner_id=?",java.math.BigDecimal.class,uid);
+    String requestNo="mock-wechat-"+orderId;
+    mvc.perform(post("/api/customer/orders/{id}/pay/mock-wechat",orderId).header("Authorization",admin).contentType(MediaType.APPLICATION_JSON).content("{\"requestNo\":\""+requestNo+"\"}"))
+      .andExpect(status().isOk()).andExpect(jsonPath("$.data.duplicated").value(false)).andExpect(jsonPath("$.data.paymentChannel").value("MOCK_WECHAT"));
+    mvc.perform(post("/api/customer/orders/{id}/pay/mock-wechat",orderId).header("Authorization",admin).contentType(MediaType.APPLICATION_JSON).content("{\"requestNo\":\""+requestNo+"\"}"))
+      .andExpect(status().isOk()).andExpect(jsonPath("$.data.duplicated").value(true));
+    assertThat(db.queryForObject("select order_status from pw_order where id=?",String.class,orderId)).isEqualTo("WAIT_ASSIGN");
+    assertThat(db.queryForObject("select payment_channel from pw_order_payment where order_id=?",String.class,orderId)).isEqualTo("MOCK_WECHAT");
+    assertThat(db.queryForObject("select cash_balance from pw_wallet_account where owner_type='USER' and owner_id=?",java.math.BigDecimal.class,uid)).isEqualByComparingTo(cashBefore);
+    assertThat(db.queryForObject("select bonus_balance from pw_wallet_account where owner_type='USER' and owner_id=?",java.math.BigDecimal.class,uid)).isEqualByComparingTo(bonusBefore);
   }
 
   @Test void mondayWithdrawalRequiresMinimumAndAdminAuditCanExportReports() throws Exception {
@@ -314,6 +480,28 @@ class RbacFlowTest {
       mvc.perform(get("/api/business/settlement/export").header("Authorization",admin).param("type","withdrawal"))
         .andExpect(status().isOk()).andExpect(header().string("Content-Type",org.hamcrest.Matchers.startsWith("text/csv")));
     } finally {db.update("update pw_commission_rule set withdraw_weekday=1 where rule_code='DEFAULT'");}
+  }
+
+  @Test void customerOrderSummaryAndGroupedListsAreAvailable() throws Exception {
+    String admin=login("admin","Test-Only-Password-9x!");
+    mvc.perform(get("/api/customer/orders/summary").header("Authorization",admin))
+      .andExpect(status().isOk()).andExpect(jsonPath("$.data").isMap());
+    for(String filter:new String[]{"PENDING_PAYMENT","WAIT_ASSIGN","ACTIVE_SERVICE","PENDING_CONFIRMATION","AFTER_SALE"}){
+      var body=mvc.perform(get("/api/customer/orders").header("Authorization",admin).param("status",filter).param("size","100"))
+        .andExpect(status().isOk()).andExpect(jsonPath("$.data.records").isArray()).andReturn().getResponse().getContentAsString();
+      for(var order:json.readTree(body).at("/data/records")){
+        String actual=order.path("orderStatus").asText();
+        if("ACTIVE_SERVICE".equals(filter))assertThat(actual).isIn("ASSIGNED","IN_SERVICE");
+        else if("PENDING_CONFIRMATION".equals(filter))assertThat(actual).isIn("PENDING_CONFIRM","WAIT_CUSTOMER_CONFIRM");
+        else assertThat(actual).isEqualTo(filter);
+      }
+    }
+  }
+
+  @Test void regularServiceProductSeedsHaveGameScopedLevelPrices() {
+    assertThat(db.queryForObject("select count(*) from pw_product where product_code in('delta-beacon-escort','delta-map-clear-order','valorant-ranked-companion') and product_type='SERVICE' and pricing_mode='PLAYER_LEVEL' and status='ON_SALE'",Long.class)).isEqualTo(3);
+    assertThat(db.queryForObject("select count(*) from pw_product_sku where sku_code in('delta-beacon-escort-1g','delta-beacon-escort-3g','delta-beacon-escort-5g','delta-map-clear-1g','delta-map-clear-3g','valorant-ranked-companion-1h','valorant-ranked-companion-2h','valorant-ranked-companion-3h')",Long.class)).isEqualTo(8);
+    assertThat(db.queryForObject("select count(*) from pw_sku_level_price x join pw_product_sku k on k.id=x.sku_id join pw_player_level l on l.id=x.player_level_id join pw_product p on p.id=k.product_id where k.sku_code in('delta-beacon-escort-1g','delta-beacon-escort-3g','delta-beacon-escort-5g','delta-map-clear-1g','delta-map-clear-3g','valorant-ranked-companion-1h','valorant-ranked-companion-2h','valorant-ranked-companion-3h') and l.game_id=p.game_id",Long.class)).isEqualTo(24);
   }
 
   private void fundAndPay(String token,long orderId,String prefix) throws Exception {recharge(token,prefix+"-fund-"+orderId);mvc.perform(post("/api/customer/orders/{id}/pay",orderId).header("Authorization",token).contentType(MediaType.APPLICATION_JSON).content("{\"requestNo\":\""+prefix+"-"+orderId+"\"}")) .andExpect(status().isOk());}

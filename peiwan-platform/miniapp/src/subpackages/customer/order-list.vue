@@ -1,3 +1,41 @@
-<template><view class="page"><view class="filter-title">{{ title }}</view><view v-for="item in orders" :key="String(item.id)" class="card" @click="detail(Number(item.id))"><view class="row"><text>{{ item.orderNo || '服务订单' }}</text><text class="status" :class="customerOrderStatusTone(item.orderStatus)">{{ customerOrderStatusText(item.orderStatus) }}</text></view><view class="muted product">{{ item.productName || '陪玩服务' }}</view></view><EmptyState v-if="!loading&&!orders.length" :text="`暂无${title}订单`" /></view></template>
-<script setup lang="ts">import{computed,ref}from'vue';import{onLoad}from'@dcloudio/uni-app';import{getCustomerOrders}from'@/api/customer';import{customerOrderStatusLabels,customerOrderStatusText,customerOrderStatusTone}from'@/utils/order-status';import EmptyState from '@/components/EmptyState.vue';import type{RecordData}from'@/types/api';const status=ref(''),orders=ref<RecordData[]>([]),loading=ref(true);const title=computed(()=>customerOrderStatusLabels[status.value]||'全部');onLoad(async(q)=>{status.value=String(q?.status||'');try{orders.value=(await getCustomerOrders(status.value)).records||[]}finally{loading.value=false}});const detail=(id:number)=>uni.navigateTo({url:`/subpackages/customer/order-detail?id=${id}`})</script>
-<style scoped>.filter-title{margin:12rpx 0 28rpx;font-size:36rpx;font-weight:800}.row{display:flex;justify-content:space-between;gap:20rpx;font-weight:700}.status{flex:none;padding:4rpx 12rpx;border-radius:6rpx;color:#315c50;background:#e5eee8;font-size:24rpx}.status.warning{color:#9a5a28;background:#f8ead5}.status.success{background:#dfece5}.status.muted-status{color:#7d817e;background:#ecebe5}.status.danger{color:#9a432f;background:#f5dfd9}.product{margin-top:18rpx}</style>
+<template>
+  <view class="order-page page">
+    <view class="page-head">
+      <view><text>{{ title }}</text><label>{{ subtitle }}</label></view>
+      <view class="seal">单</view>
+    </view>
+    <CustomerOrderCards v-if="ready" ref="list" :status="status" :empty-text="`暂无${title}订单`" />
+  </view>
+</template>
+
+<script setup lang="ts">
+import { computed, nextTick, ref } from 'vue'
+import { onLoad, onReachBottom, onShow } from '@dcloudio/uni-app'
+import CustomerOrderCards from '@/components/CustomerOrderCards.vue'
+import { requireLogin } from '@/utils/auth-guard'
+import { customerOrderStatusLabels } from '@/utils/order-status'
+
+const status = ref('')
+const ready = ref(false)
+const list = ref<InstanceType<typeof CustomerOrderCards>>()
+const title = computed(() => customerOrderStatusLabels[status.value] || '全部订单')
+const subtitle = computed(() => ({
+  PENDING_PAYMENT: '及时支付，平台才会开始匹配服务',
+  WAIT_ASSIGN: '订单正在大厅等待合适的陪玩师',
+  ACTIVE_SERVICE: '查看已接单与正在服务的订单',
+  PENDING_CONFIRMATION: '查看审核进度并确认服务结果',
+  AFTER_SALE: '跟进售后处理状态与结果',
+}[status.value] || '查看全部服务订单与当前进度'))
+
+onLoad(query => { status.value = String(query?.status || ''); ready.value = true })
+onShow(async () => {
+  if (!requireLogin('登录后才能查看订单')) return
+  await nextTick()
+  await list.value?.load(true)
+})
+onReachBottom(() => list.value?.loadMore())
+</script>
+
+<style scoped lang="scss">
+.order-page{min-height:100vh;padding-bottom:70rpx;background:radial-gradient(circle at 88% 0,rgba(87,126,105,.16),transparent 32%),#eee9da}.page-head{min-height:135rpx;margin-bottom:24rpx;padding:27rpx 30rpx;border-radius:24rpx;box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;color:#fff4da;background:linear-gradient(125deg,#1d4034,#496e5e);box-shadow:0 14rpx 32rpx rgba(35,58,48,.16)}.page-head text,.page-head label{display:block}.page-head text{font-family:STKaiti,KaiTi,serif;font-size:37rpx;font-weight:800;letter-spacing:2rpx}.page-head label{margin-top:9rpx;color:rgba(255,244,218,.62);font-size:19rpx}.seal{width:60rpx;height:60rpx;border:2rpx solid rgba(241,201,157,.7);color:#efcaa3;line-height:60rpx;text-align:center;font-family:STKaiti,KaiTi,serif;font-size:28rpx;transform:rotate(6deg)}
+</style>

@@ -81,9 +81,10 @@
                   :label="x.gameName"
                   :value="x.id" /></ElSelect></ElCol
             ><ElCol :span="8"><ElInput v-model="g.gameNickname" placeholder="游戏昵称" /></ElCol
-            ><ElCol :span="8"><ElInput v-model="g.serverName" placeholder="区服" /></ElCol
+            ><ElCol :span="8"><ElSelect v-model="g.priceLevelId" class="w-full" placeholder="陪玩等级"><ElOption v-for="level in levelsForGame(g.gameId)" :key="level.id" :label="level.levelName" :value="level.id" /></ElSelect></ElCol
+            ><ElCol :span="8" class="mt-3"><ElSelect v-model="g.serverId" clearable class="w-full" placeholder="选择区服"><ElOption v-for="server in gameConfigMap[g.gameId]?.servers||[]" :key="server.id" :label="server.serverName" :value="server.id" /></ElSelect></ElCol
             ><ElCol :span="8" class="mt-3"
-              ><ElInput v-model="g.rankName" placeholder="段位" /></ElCol
+              ><ElSelect v-model="g.rankId" clearable class="w-full" placeholder="选择段位"><ElOption v-for="rank in gameRanks(g.gameId)" :key="rank.id" :label="rank.rankName" :value="rank.id" /></ElSelect></ElCol
             ><ElCol :span="16" class="mt-3"
               ><LocalFileUpload v-model="g.proofUrl" kind="PROOF" accept="image/jpeg,image/png,image/webp,application/pdf" /></ElCol
             ><ElCol :span="8" class="mt-3"
@@ -145,7 +146,7 @@
     fetchGamePositions,
     createPlayer,
     updatePlayer
-    ,fetchPlayerUserOptions,setPlayerCapacity
+    ,fetchPlayerUserOptions,setPlayerCapacity,fetchPlayerLevels,fetchGameConfig
   } from '@/api/business-manage'
   import LocalFileUpload from '@/components/business/local-file-upload.vue'
   const props = defineProps<{ modelValue: boolean; id?: number }>(),
@@ -157,8 +158,8 @@
     tab = ref('base'),
     saving = ref(false),
     games = ref<Api.Business.Game[]>([]),
-    tags = ref<Api.Business.PlayerTag[]>([]), users = ref<any[]>([]),
-    positionMap = reactive<Record<number, Api.Business.GamePosition[]>>({})
+    tags = ref<Api.Business.PlayerTag[]>([]), users = ref<any[]>([]), playerLevels = ref<any[]>([]),
+    positionMap = reactive<Record<number, Api.Business.GamePosition[]>>({}),gameConfigMap=reactive<Record<number,any>>({})
   const empty = (): Api.Business.PlayerSave => ({
     nickname: '',
     realName: '',
@@ -180,25 +181,32 @@
   const form = reactive<Api.Business.PlayerSave>(empty())
   async function loadPositions(gameId: number) {
     if (gameId && !positionMap[gameId]) positionMap[gameId] = await fetchGamePositions(gameId)
+    if(gameId&&!gameConfigMap[gameId])gameConfigMap[gameId]=await fetchGameConfig(gameId)
   }
   async function init() {
     tab.value = 'base'
-    ;[games.value, tags.value, users.value] = await Promise.all([fetchGameOptions(), fetchTagOptions(), fetchPlayerUserOptions(props.id)])
+    ;[games.value, tags.value, users.value, playerLevels.value] = await Promise.all([fetchGameOptions(), fetchTagOptions(), fetchPlayerUserOptions(props.id), fetchPlayerLevels()])
     Object.assign(form, empty(), props.id ? await fetchPlayer(props.id) : {})
     await Promise.all(form.games.map((g) => loadPositions(g.gameId)))
   }
   async function changeGame(g: Api.Business.PlayerGame) {
     g.positionIds = []
     g.primaryPositionId = undefined
+    g.priceLevelId = levelsForGame(g.gameId)[0]?.id
+    g.serverId=undefined
+    g.rankId=undefined
     await loadPositions(g.gameId)
   }
   function addGame() {
     const gameId = games.value[0]?.id || 0
     form.games.push({
       gameId,
+      priceLevelId: levelsForGame(gameId)[0]?.id,
       gameNickname: '',
       serverName: '',
       rankName: '',
+      serverId: undefined,
+      rankId: undefined,
       proofUrl: '',
       primary: form.games.length === 0,
       enabled: true,
@@ -209,6 +217,10 @@
   function selectedPositions(g: Api.Business.PlayerGame) {
     return (positionMap[g.gameId] || []).filter((p) => g.positionIds?.includes(p.id))
   }
+  function levelsForGame(gameId: number) {
+    return playerLevels.value.filter((level) => Number(level.gameId) === Number(gameId))
+  }
+  function gameRanks(gameId:number){return (gameConfigMap[gameId]?.rankSystems||[]).flatMap((system:any)=>system.ranks||[])}
   function validatePrimary(g: Api.Business.PlayerGame) {
     if (g.primaryPositionId && !g.positionIds?.includes(g.primaryPositionId))
       g.primaryPositionId = undefined

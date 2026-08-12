@@ -59,7 +59,7 @@
             ><span v-else>-</span></template
           ></ElTableColumn
         >
-        <ElTableColumn prop="skuCount" label="规格数" width="80" /><ElTableColumn
+        <ElTableColumn label="SKU规格" width="120"><template #default="{row}"><ElButton link type="primary" @click="openSku(row)">{{row.skuCount||0}} 个 · 查看</ElButton></template></ElTableColumn><ElTableColumn
           label="状态"
           width="90"
           ><template #default="{ row }"
@@ -137,13 +137,14 @@
         ><span class="font-medium">销售规格（SKU）</span
         ><ElButton type="primary" plain @click="addSku">新增规格</ElButton></div
       >
+      <ElAlert v-if="form.productType==='SERVICE'" class="mb-3" type="info" :closable="false" title="普通服务的等级单价在“基础服务”中配置；SKU 仅描述单位数量、陪玩人数，兜底价只在缺少等级报价时使用。" />
       <ElTable ref="skuTable" :data="form.skus" border max-height="300">
         <ElTableColumn label="规格编码" width="205" fixed="left"
           ><template #default="{ row }"><div class="flex gap-1"><ElInput v-model="row.skuCode" /><ElTooltip content="重新生成编码"><ElButton class="!px-2" @click="row.skuCode = generateBusinessCode('sku')"><ArtSvgIcon icon="ri:refresh-line" /></ElButton></ElTooltip></div></template></ElTableColumn
         ><ElTableColumn label="规格名称" min-width="135"
           ><template #default="{ row }"><ElInput v-model="row.skuName" /></template
         ></ElTableColumn>
-        <ElTableColumn label="售价" width="100"
+        <ElTableColumn :label="form.productType==='SERVICE'?'兜底价':'售价'" width="100"
           ><template #default="{ row }"
             ><ElInputNumber
               v-model="row.price"
@@ -166,6 +167,12 @@
               :precision="2"
               :controls="false"
               class="!w-full" /></template></ElTableColumn
+        ><ElTableColumn label="陪玩人数" width="95"
+          ><template #default="{ row }"
+            ><ElInputNumber v-model="row.playerCount" :min="1" :max="20" :controls="false" class="!w-full" /></template></ElTableColumn
+        ><ElTableColumn label="价格类型" width="120"
+          ><template #default="{ row }"
+            ><ElSelect v-model="row.priceType"><ElOption label="每人单价" value="PER_PLAYER" /><ElOption label="整单总价" value="FIXED_TOTAL" /></ElSelect></template></ElTableColumn
         ><ElTableColumn label="最少购买" width="90"
           ><template #default="{ row }"
             ><ElInputNumber
@@ -194,6 +201,18 @@
         ><ElButton type="primary" :loading="saving" @click="save">保存为草稿</ElButton></template
       >
     </ElDialog>
+    <ElDialog v-model="skuVisible" :title="`${skuProduct.productName || '商品'} · SKU明细`" width="980px">
+      <ElTable :data="skuProduct.skus || []" border max-height="520">
+        <ElTableColumn prop="skuCode" label="SKU编码" min-width="180" />
+        <ElTableColumn prop="skuName" label="规格名称" min-width="150" />
+        <ElTableColumn label="服务规格" width="120"><template #default="{row}">{{row.unitCount}} {{unitText[row.unitType]||row.unitType}}</template></ElTableColumn>
+        <ElTableColumn label="陪玩人数" width="90"><template #default="{row}">{{row.playerCount||1}} 人</template></ElTableColumn>
+        <ElTableColumn label="计价方式" width="100"><template #default="{row}"><ElTag :type="row.priceType==='FIXED_TOTAL'?'warning':'info'">{{row.priceType==='FIXED_TOTAL'?'整单总价':'每人单价'}}</ElTag></template></ElTableColumn>
+        <ElTableColumn label="基础价格" width="100"><template #default="{row}">¥ {{Number(row.price||0).toFixed(2)}}</template></ElTableColumn>
+        <ElTableColumn label="价格来源" min-width="170"><template #default="{row}">{{skuProduct.productType==='SERVICE'?'基础服务等级单价':'SKU 固定总价'}}<span v-if="skuProduct.productType==='SERVICE'" class="text-gray-400">（缺失时用兜底价）</span></template></ElTableColumn>
+        <ElTableColumn label="状态" width="75"><template #default="{row}"><ElTag :type="row.enabled?'success':'info'">{{row.enabled?'启用':'停用'}}</ElTag></template></ElTableColumn>
+      </ElTable>
+    </ElDialog>
   </div>
 </template>
 <script setup lang="ts">
@@ -218,6 +237,8 @@
     saving = ref(false),
     skuTable = ref(),
     visible = ref(false),
+    skuVisible = ref(false),
+    skuProduct = ref<any>({}),
     rows = ref<Api.Business.Product[]>([]),
     games = ref<Api.Business.Game[]>([]),
     categories = ref<Api.Business.ProductCategory[]>([]),
@@ -238,6 +259,7 @@
     ON_SALE: { text: '已上架', type: 'success' },
     OFF_SHELF: { text: '已下架', type: 'warning' }
   }
+  const unitText:any={HOUR:'小时',GAME:'局',ORDER:'单'}
   const availableServices = computed(() =>
     services.value.filter((x) => x.gameId === form.gameId && x.enabled)
   )
@@ -312,6 +334,10 @@
     await nextTick()
     skuTable.value?.setScrollLeft?.(0)
   }
+  async function openSku(row: Api.Business.Product) {
+    skuProduct.value = await fetchProduct(row.id)
+    skuVisible.value = true
+  }
   function gameChanged() {
     form.categoryId = undefined
     form.serviceIds = []
@@ -327,6 +353,8 @@
       marketPrice: undefined,
       unitType: 'HOUR',
       unitCount: 1,
+      playerCount: 1,
+      priceType: form.productType === 'PACKAGE' ? 'FIXED_TOTAL' : 'PER_PLAYER',
       minQuantity: 1,
       maxQuantity: undefined,
       stockMode: 'UNLIMITED',

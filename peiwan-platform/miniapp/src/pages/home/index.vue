@@ -33,7 +33,7 @@
         <view class="announcement-arrow">›</view>
       </view>
       <view class="recommend-section">
-        <view class="recommend-head"><view><text>推荐套餐</text><label>高人气组合，玩得更尽兴</label></view><view @click="openPackage">全部 ›</view></view>
+        <view class="recommend-head"><view><text>推荐套餐</text><label>高人气组合，玩得更尽兴</label></view><view @click="openPackage">查看更多 ›</view></view>
         <view v-if="recommendations.length" class="recommend-grid">
           <view class="recommend-card recommend-main" @click="openRecommended(recommendations[0])">
             <image :src="String(recommendations[0].coverUrl)" mode="aspectFill" />
@@ -69,7 +69,7 @@ const latestAnnouncement = {
   title: '凌竞电竞开发测试公告',
   date: '08-09',
   fullDate: '2026年8月9日',
-  content: '凌竞电竞小程序当前为开发测试版本，服务大厅、订单流程与陪玩师工作台已开放体验。充值、支付和在线客服等功能仍处于模拟或规划阶段，请勿用于真实交易。',
+  content: '凌竞电竞小程序当前为开发测试版本，服务大厅、订单流程、钱包余额支付与陪玩师工作台已开放体验。充值、真实微信支付和在线客服仍处于模拟或规划阶段，请勿用于真实交易。',
 }
 const auth = useAuthStore()
 const mode = useAppModeStore()
@@ -111,7 +111,7 @@ onShow(async () => {
 function acceptNotice() { uni.setStorageSync(NOTICE_KEY, true); showNotice.value = false }
 function openSearch() { uni.navigateTo({ url: '/pages/discover/index' }) }
 function openHall() { uni.removeStorageSync('peiwan_catalog_entry'); goTab('/pages/hall/index') }
-function openPackage() { uni.setStorageSync('peiwan_catalog_entry', 'package'); goTab('/pages/hall/index') }
+function openPackage() { uni.navigateTo({ url: '/pages/discover/index?productType=PACKAGE' }) }
 function openPlayers() { goTab('/pages/players/index') }
 function openAnnouncement() {
   uni.showModal({

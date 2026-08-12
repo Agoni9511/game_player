@@ -15,7 +15,11 @@
       "name": "customerBusiness",
       "pages": [
         { "path": "profile-edit", "style": { "navigationBarTitleText": "个人资料" } },
+        { "path": "recharge", "style": { "navigationBarTitleText": "钱包充值" } },
+        { "path": "wallet-transactions", "style": { "navigationBarTitleText": "资金明细" } },
+        { "path": "player-detail", "style": { "navigationBarTitleText": "陪玩师详情" } },
         { "path": "product-detail", "style": { "navigationBarTitleText": "服务详情" } },
+        { "path": "select-player", "style": { "navigationBarTitleText": "选择陪玩" } },
         { "path": "confirm-order", "style": { "navigationBarTitleText": "确认订单" } },
         { "path": "order-detail", "style": { "navigationBarTitleText": "订单详情" } },
         { "path": "order-list", "style": { "navigationBarTitleText": "订单分类" } },

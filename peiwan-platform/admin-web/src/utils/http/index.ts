@@ -23,7 +23,6 @@ import { BaseResponse } from '@/types'
 
 /** 请求配置常量 */
 const REQUEST_TIMEOUT = 15000
-const LOGOUT_DELAY = 500
 const MAX_RETRIES = 0
 const RETRY_DELAY = 1000
 const UNAUTHORIZED_DEBOUNCE_TIME = 3000
@@ -49,7 +48,7 @@ const axiosInstance = axios.create({
   transformResponse: [
     (data, headers) => {
       const contentType = headers['content-type']
-      if (contentType?.includes('application/json')) {
+      if (String(contentType ?? '').includes('application/json')) {
         try {
           return JSON.parse(data)
         } catch {
@@ -92,7 +91,8 @@ axiosInstance.interceptors.response.use(
     if (
       error.response?.status === ApiStatus.unauthorized &&
       !error.config?.url?.includes('/api/auth/login')
-    ) handleUnauthorizedError(error.response?.data?.msg)
+    )
+      handleUnauthorizedError(error.response?.data?.msg)
     return Promise.reject(handleError(error))
   }
 )
@@ -128,9 +128,7 @@ function resetUnauthorizedError() {
 
 /** 退出登录函数 */
 function logOut() {
-  setTimeout(() => {
-    useUserStore().logOut()
-  }, LOGOUT_DELAY)
+  useUserStore().logOut()
 }
 
 /** 是否需要重试 */

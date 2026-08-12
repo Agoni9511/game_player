@@ -75,7 +75,7 @@ export default ({ mode }: { mode: string }) => {
       // 自动按需导入 API
       AutoImport({
         imports: ['vue', 'vue-router', 'pinia', '@vueuse/core'],
-        dts: 'src/types/import/auto-imports.d.ts',
+        dts: false,
         resolvers: [ElementPlusResolver()],
         eslintrc: {
           enabled: true,
@@ -85,7 +85,7 @@ export default ({ mode }: { mode: string }) => {
       }),
       // 自动按需导入组件
       Components({
-        dts: 'src/types/import/components.d.ts',
+        dts: false,
         resolvers: [ElementPlusResolver()]
       }),
       // 按需定制主题配置

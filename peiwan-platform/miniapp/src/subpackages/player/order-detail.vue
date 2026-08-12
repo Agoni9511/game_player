@@ -6,6 +6,8 @@
 
     <view class="section"><view class="section-title">联系与时间</view><view class="field"><text>联系人</text><label>{{ detail.contactName || '未填写' }}</label></view><view class="field"><text>联系电话</text><label>{{ detail.contactPhone || '未填写' }}</label></view><view class="field"><text>接单时间</text><label>{{ formatTime(detail.assignedAt) }}</label></view><view class="field"><text>开始时间</text><label>{{ formatTime(detail.serviceStartedAt) }}</label></view></view>
 
+    <view class="section"><view class="section-title">服务成员（{{ detail.memberCount || 0 }}/{{ detail.requiredPlayerCount || 1 }}）</view><view v-for="member in (detail.members as RecordData[] || [])" :key="String(member.id)" class="field"><text>{{ member.playerName }}</text><label>已加入服务</label></view></view>
+
     <view class="section amount-section"><view class="field"><text>商品金额</text><label>¥{{ money(detail.totalAmount) }}</label></view><view class="field total"><text>订单实付</text><label>¥{{ money(detail.payableAmount) }}</label></view></view>
 
     <view v-if="showProgress" class="section"><view class="section-title">完成确认进度</view><view class="progress"><view class="step done"><view>✓</view><text>陪玩提交</text></view><view class="line" :class="{ done: isReviewed }"/><view class="step" :class="{ done: isReviewed }"><view>{{ isReviewed?'✓':'2' }}</view><text>平台审核</text></view><view class="line" :class="{ done: detail.orderStatus==='COMPLETED' }"/><view class="step" :class="{ done: detail.orderStatus==='COMPLETED' }"><view>{{ detail.orderStatus==='COMPLETED'?'✓':'3' }}</view><text>顾客确认</text></view></view><view class="progress-tip">{{ statusDescription }}</view></view>

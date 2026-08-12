@@ -46,13 +46,19 @@ export class RouteRegistry {
     // 转换并注册路由
     const removeRouteFns: (() => void)[] = []
 
-    menuList.forEach((route) => {
-      if (route.name && !this.router.hasRoute(route.name)) {
-        const routeConfig = this.transformer.transform(route)
-        const removeRouteFn = this.router.addRoute(routeConfig as RouteRecordRaw)
-        removeRouteFns.push(removeRouteFn)
-      }
-    })
+    try {
+      menuList.forEach((route) => {
+        if (route.name && !this.router.hasRoute(route.name)) {
+          const routeConfig = this.transformer.transform(route)
+          const removeRouteFn = this.router.addRoute(routeConfig as RouteRecordRaw)
+          removeRouteFns.push(removeRouteFn)
+        }
+      })
+    } catch (error) {
+      // Never leave a half-registered matcher behind after a malformed menu entry.
+      removeRouteFns.reverse().forEach((remove) => remove())
+      throw error
+    }
 
     this.removeRouteFns = removeRouteFns
     this.registered = true

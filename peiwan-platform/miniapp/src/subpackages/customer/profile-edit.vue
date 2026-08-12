@@ -28,6 +28,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import { updateUserProfile } from '@/api/auth'
 import { assetUrl, uploadFile } from '@/services/http'
 import { useAuthStore } from '@/stores/auth'
+import { requireLogin } from '@/utils/auth-guard'
 
 const auth = useAuthStore()
 const saving = ref(false)
@@ -37,6 +38,7 @@ const genders = [{label:'保密',value:'UNKNOWN'},{label:'男',value:'MALE'},{la
 const avatarText = computed(() => (form.nickName || auth.user?.userName || '游').slice(0,1))
 
 onLoad(async () => {
+  if (!requireLogin('登录后才能编辑个人资料')) return
   if (!auth.user) await auth.loadUser()
   form.nickName = auth.user?.nickName || ''
   form.gender = auth.user?.gender || 'UNKNOWN'
@@ -67,4 +69,5 @@ async function save() {
 
 <style scoped lang="scss">
 .profile-page{padding-bottom:60rpx}.intro{min-height:220rpx;padding:28rpx 18rpx 36rpx;display:flex;align-items:center;gap:28rpx}.avatar{position:relative;width:142rpx;height:142rpx;flex:none;overflow:hidden;border:6rpx solid rgba(49,92,80,.18);border-radius:18rpx 42rpx 18rpx 42rpx;display:flex;align-items:center;justify-content:center;color:#fffaf0;background:#963d31;font-family:STKaiti,KaiTi,serif;font-size:50rpx;font-weight:800}.avatar image{width:100%;height:100%}.avatar>view{position:absolute;left:0;right:0;bottom:0;padding:8rpx 0;color:#fff;background:rgba(24,46,38,.7);font-family:sans-serif;font-size:18rpx;text-align:center}.heading{color:#1d3027;font-family:STKaiti,KaiTi,serif;font-size:38rpx;font-weight:800}.intro>view>text{display:block;margin-top:12rpx;color:#79867f;font-size:21rpx}.form-card{padding:10rpx 28rpx;border:1rpx solid rgba(54,79,68,.16);border-radius:12rpx 30rpx 12rpx 30rpx;background:rgba(255,252,241,.96);box-shadow:0 12rpx 32rpx rgba(38,54,45,.08)}.field{min-height:104rpx;border-bottom:1rpx solid rgba(49,92,80,.12);display:flex;align-items:center}.field:last-child{border-bottom:0}.field>text{width:150rpx;color:#42574d;font-size:25rpx}.field input{flex:1;color:#26372f;text-align:right;font-size:25rpx}.readonly input{color:#99a29c}.gender>view{flex:1;display:flex;justify-content:flex-end;gap:12rpx}.gender>view>view{padding:11rpx 22rpx;border:1rpx solid rgba(49,92,80,.2);border-radius:24rpx;color:#748078;background:#f0eee3;font-size:21rpx}.gender .active{border-color:#315c50;color:#fffaf0;background:#315c50}.safe-tip{margin:24rpx 8rpx;padding:22rpx 24rpx;border-left:6rpx solid #557869;border-radius:6rpx 20rpx 20rpx 6rpx;background:rgba(218,228,213,.64)}.safe-tip view{color:#315c50;font-weight:700}.safe-tip text{display:block;margin-top:8rpx;color:#77837c;font-size:20rpx;line-height:1.6}.save{height:90rpx;margin-top:32rpx;border-radius:12rpx 26rpx 12rpx 26rpx;color:#fffaf0;background:#315c50;font-size:27rpx;font-weight:700}
+.avatar{border-radius:50%}
 </style>

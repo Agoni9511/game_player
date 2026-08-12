@@ -76,7 +76,7 @@ export const useMenuStore = defineStore('menuStore', () => {
    * @param fns 要添加的路由移除函数数组
    */
   const addRemoveRouteFns = (fns: (() => void)[]) => {
-    removeRouteFns.value.push(...fns)
+    removeRouteFns.value = [...fns]
   }
 
   /**

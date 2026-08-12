@@ -67,11 +67,12 @@
         ><ElButton type="primary" @click="save">保存</ElButton></template
       ></ElDialog
     ><PositionDialog v-model="positionVisible" :game="positionGame"
-  /></div>
+  /><ConfigDialog v-model="configVisible" :game="configGame" /></div>
 </template>
 <script setup lang="ts">
   import ArtButtonMore from '@/components/core/forms/art-button-more/index.vue'
   import PositionDialog from './modules/position-dialog.vue'
+  import ConfigDialog from './modules/config-dialog.vue'
   import LocalFileUpload from '@/components/business/local-file-upload.vue'
   import {
     fetchGames,
@@ -89,13 +90,16 @@
     total = ref(0),
     visible = ref(false),
     positionVisible = ref(false),
+    configVisible = ref(false),
     positionGame = ref<Api.Business.Game>(),
+    configGame = ref<Api.Business.Game>(),
     query = reactive<any>({ current: 1, size: 20, gameName: '', enabled: undefined }),
     editing = reactive<any>({})
   const actions = computed(() => [
     ...(has('business:game-position:list')
       ? [{ key: 'positions', label: '位置维护', icon: 'ri:map-pin-line' }]
       : []),
+    ...(has('business:game:update') ? [{ key: 'config', label: '区服与段位', icon: 'ri:medal-line' }] : []),
     ...(has('business:game:update') ? [{ key: 'edit', label: '编辑', icon: 'ri:edit-line' }] : []),
     ...(has('business:game:delete')
       ? [{ key: 'delete', label: '删除', icon: 'ri:delete-bin-line', color: '#f56c6c' }]
@@ -153,6 +157,7 @@
   }
   async function action(k: any, r: any) {
     if (k === 'edit') open(r)
+    else if(k==='config'){configGame.value=r;configVisible.value=true}
     else if (k === 'positions') {
       positionGame.value = r
       positionVisible.value = true

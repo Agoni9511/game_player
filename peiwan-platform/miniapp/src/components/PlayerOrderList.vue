@@ -19,6 +19,7 @@
         <view class="info-grid">
           <view><text>服务规格</text><label>{{ order.skuName || '默认规格' }}</label></view>
           <view><text>区服 / 段位</text><label>{{ [order.serverName,order.rankName].filter(Boolean).join(' · ') || '未填写' }}</label></view>
+          <view><text>服务成员</text><label>{{ order.memberCount || 0 }}/{{ order.requiredPlayerCount || 1 }} 人</label></view>
           <view class="wide"><text>预约信息</text><label>{{ appointmentText(order) }}</label></view>
         </view>
         <view v-if="reviewHint(order)" class="review-hint"><image src="/static/icons/hourglass.png"/><text>{{ reviewHint(order) }}</text></view>
@@ -39,13 +40,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { getPlayerOrder, getPlayerOrders, startOrder } from '@/api/player'
 import EmptyState from '@/components/EmptyState.vue'
 import type { RecordData } from '@/types/api'
 
 const tabs=[{key:'ALL',label:'全部'},{key:'ASSIGNED',label:'待开始'},{key:'IN_SERVICE',label:'服务中'},{key:'REVIEW',label:'待审核'},{key:'COMPLETED',label:'已完成'}]
+const props=withDefaults(defineProps<{initialTab?:string}>(),{initialTab:'ALL'})
 const activeTab=ref('ALL'),orders=ref<RecordData[]>([]),loading=ref(false)
+watch(()=>props.initialTab,value=>{if(tabs.some(tab=>tab.key===value))activeTab.value=value},{immediate:true})
 const filteredOrders=computed(()=>activeTab.value==='ALL'?orders.value:orders.value.filter(item=>activeTab.value==='REVIEW'?['PENDING_CONFIRM','WAIT_CUSTOMER_CONFIRM'].includes(String(item.orderStatus)):item.orderStatus===activeTab.value))
 const activeLabel=computed(()=>tabs.find(tab=>tab.key===activeTab.value)?.label||'')
 onMounted(load)

@@ -32,6 +32,18 @@ Component({
       const index = Number(event.currentTarget.dataset.index)
       const item = this.data.list[index]
       if (!item) return
+      if (item.pagePath === '/pages/messages/index' && !wx.getStorageSync('peiwan_access_token')) {
+        wx.showModal({
+          title: '请先登录',
+          content: '登录后才能查看消息通知',
+          confirmText: '去登录',
+          cancelText: '暂不登录',
+          success: result => {
+            if (result.confirm) wx.navigateTo({ url: '/pages/auth/login' })
+          }
+        })
+        return
+      }
       this.setData({ selected: index })
       wx.switchTab({
         url: item.pagePath,
