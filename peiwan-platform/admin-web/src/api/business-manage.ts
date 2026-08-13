@@ -114,4 +114,10 @@ export const fetchSettlementWithdrawals=(params:any)=>request.get<any>({url:'/ap
 export const auditSettlementWithdrawal=(id:number,action:string,remark='')=>request.put({url:`/api/business/settlement/withdrawals/${id}/audit`,params:{action,remark}})
 export const fetchSettlementRule=()=>request.get<any>({url:'/api/business/settlement/rule'})
 export const updateSettlementRule=(params:any)=>request.put({url:'/api/business/settlement/rule',params})
+export const fetchFinanceSummary=(params:any)=>request.get<any>({url:'/api/business/finance/summary',params})
+export const fetchFinancePayments=(params:any)=>request.get<any>({url:'/api/business/finance/payments',params})
+export const fetchFinancePlatformLedger=(params:any)=>request.get<any>({url:'/api/business/finance/platform-ledger',params})
+export const fetchFinanceWalletTransactions=(params:any)=>request.get<any>({url:'/api/business/finance/wallet-transactions',params})
+export const fetchFinancePlayerTransactions=(params:any)=>request.get<any>({url:'/api/business/finance/player-transactions',params})
+export const fetchFinanceSettlements=(params:any)=>request.get<any>({url:'/api/business/finance/settlements',params})
 export async function downloadSettlementReport(type:'earning'|'withdrawal') {const{useUserStore}=await import('@/store/modules/user');const base=(import.meta.env.VITE_API_URL||'').replace(/\/$/,'');const response=await fetch(`${base}/api/business/settlement/export?type=${type}`,{headers:{Authorization:useUserStore().accessToken}});if(!response.ok)throw new Error('报表导出失败');return response.blob()}

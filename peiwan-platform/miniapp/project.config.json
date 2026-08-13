@@ -2,7 +2,7 @@
   "description": "陪玩微信小程序开发配置",
   "miniprogramRoot": "dist/dev/mp-weixin/",
   "compileType": "miniprogram",
-  "appid": "wx7aa8f262c4970322",
+  "appid": "wxea0240a42063c5ec",
   "projectname": "凌竞电竞陪玩服务",
   "setting": {
     "urlCheck": false,

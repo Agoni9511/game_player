@@ -36,17 +36,22 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { getPlayerOrder, getPlayerOrders, startOrder } from '@/api/player'
 import EmptyState from '@/components/EmptyState.vue'
+import { useAuthStore } from '@/stores/auth'
+import { markPlayerOrdersSeen, type PlayerOrderCategory } from '@/utils/order-status'
 import type { RecordData } from '@/types/api'
 
 const tabs=[{key:'ALL',label:'全部'},{key:'ASSIGNED',label:'待开始'},{key:'IN_SERVICE',label:'服务中'},{key:'REVIEW',label:'待审核'},{key:'COMPLETED',label:'已完成'}]
 const props=withDefaults(defineProps<{initialTab?:string}>(),{initialTab:'ALL'})
+const auth=useAuthStore()
 const activeTab=ref('ALL'),orders=ref<RecordData[]>([]),loading=ref(false)
 watch(()=>props.initialTab,value=>{if(tabs.some(tab=>tab.key===value))activeTab.value=value},{immediate:true})
+watch(activeTab,markVisibleOrdersSeen)
 const filteredOrders=computed(()=>activeTab.value==='ALL'?orders.value:orders.value.filter(item=>activeTab.value==='REVIEW'?['PENDING_CONFIRM','WAIT_CUSTOMER_CONFIRM'].includes(String(item.orderStatus)):item.orderStatus===activeTab.value))
 const activeLabel=computed(()=>tabs.find(tab=>tab.key===activeTab.value)?.label||'')
 onMounted(load)
 defineExpose({ load })
-async function load(){loading.value=true;try{const records=(await getPlayerOrders()).records||[];orders.value=await Promise.all(records.map(async item=>{try{return{...item,...await getPlayerOrder(Number(item.id))}}catch{return item}}))}finally{loading.value=false}}
+async function load(){loading.value=true;try{const records=(await getPlayerOrders()).records||[];orders.value=await Promise.all(records.map(async item=>{try{return{...item,...await getPlayerOrder(Number(item.id))}}catch{return item}}));markVisibleOrdersSeen()}finally{loading.value=false}}
+function markVisibleOrdersSeen(){if(!orders.value.length||!auth.user?.userId)return;markPlayerOrdersSeen(orders.value,auth.user.userId,activeTab.value as PlayerOrderCategory|'ALL')}
 function countFor(key:string){if(key==='ALL')return orders.value.length;if(key==='REVIEW')return orders.value.filter(x=>['PENDING_CONFIRM','WAIT_CUSTOMER_CONFIRM'].includes(String(x.orderStatus))).length;return orders.value.filter(x=>x.orderStatus===key).length}
 function statusText(status:string){return({ASSIGNED:'待开始',IN_SERVICE:'服务中',PENDING_CONFIRM:'平台审核中',WAIT_CUSTOMER_CONFIRM:'待顾客确认',COMPLETED:'已完成',CANCELLED:'已取消',AFTER_SALE:'售后处理中'}as Record<string,string>)[status]||status}
 function statusClass(status:string){if(status==='IN_SERVICE')return'working';if(['PENDING_CONFIRM','WAIT_CUSTOMER_CONFIRM'].includes(status))return'review';if(status==='COMPLETED')return'done';if(isAbnormal(status))return'abnormal';return'waiting'}

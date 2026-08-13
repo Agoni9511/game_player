@@ -23,14 +23,16 @@
         <view class="sort-row">
           <view v-for="item in sortOptions" :key="item.value" :class="{ active: sort === item.value }" @click="selectSort(item.value)">{{ item.shortLabel }}</view>
         </view>
-        <view class="filter-trigger" :class="{ active: activeFilterCount > 0 }" @click="filterSheetVisible = true">
-          <text>筛选</text><label v-if="activeFilterCount">{{ activeFilterCount }}</label><text>▾</text>
+        <view class="filter-trigger" :class="{ active: hasExtraFilters }" @click="filterSheetVisible = true">
+          <image src="/static/icons/list.png" />
+          <text>筛选</text>
+          <view v-if="hasExtraFilters" class="filter-dot" />
         </view>
       </view>
       <scroll-view v-if="activeFilterLabels.length" scroll-x class="selected-scroll" :show-scrollbar="false">
         <view class="selected-row">
           <view v-for="label in activeFilterLabels" :key="label" class="selected-chip" @click="filterSheetVisible = true">{{ label }}</view>
-          <view class="clear-filter" @click="resetFilters()">清空</view>
+          <view class="clear-filter" @click="clearExtraFilters">清空</view>
         </view>
       </scroll-view>
 
@@ -126,7 +128,6 @@ const sortOptions = [
 const workStatus = computed(() => String((workbench.value.player as RecordData | undefined)?.workStatus || 'OFFLINE'))
 const statusLabel = computed(() => ({ AVAILABLE: '接单中', BUSY: '服务中', OFFLINE: '休息中' } as Record<string, string>)[workStatus.value] || '休息中')
 const isPackageCatalog = computed(() => productType.value === 'PACKAGE')
-const activeFilterCount = computed(() => [gameId.value, categoryId.value, serviceType.value, playerLevelId.value, minPrice.value || maxPrice.value].filter(Boolean).length)
 const flatCategories = computed(() => {
   const result: RecordData[] = []
   const walk = (rows: RecordData[]) => rows.forEach(row => {
@@ -141,17 +142,16 @@ const flatCategories = computed(() => {
 const visibleCategories = computed(() => flatCategories.value.filter(item => !gameId.value || Number(item.gameId) === gameId.value))
 const activeFilterLabels = computed(() => {
   const labels: string[] = []
-  const game = games.value.find(item => Number(item.id) === gameId.value)
   const category = flatCategories.value.find(item => Number(item.id) === categoryId.value)
   const service = serviceTypes.find(item => item.value === serviceType.value)
   const level = playerLevels.value.find(item => Number(item.id) === playerLevelId.value)
-  if (game) labels.push(String(game.gameName))
   if (category) labels.push(String(category.categoryName))
   if (service?.value) labels.push(service.label)
   if (level) labels.push(String(level.levelName))
   if (minPrice.value || maxPrice.value) labels.push(`¥${minPrice.value || '0'}—${maxPrice.value || '不限'}`)
   return labels
 })
+const hasExtraFilters = computed(() => activeFilterLabels.value.length > 0)
 
 onLoad(query => {
   routeProductType.value = String(query?.productType || '').toUpperCase() === 'PACKAGE' ? 'PACKAGE' : ''
@@ -210,6 +210,14 @@ async function resetFilters(closeSheet = true) {
   await loadProducts()
   if (closeSheet) filterSheetVisible.value = false
 }
+async function clearExtraFilters() {
+  categoryId.value = 0
+  serviceType.value = ''
+  playerLevelId.value = 0
+  minPrice.value = ''
+  maxPrice.value = ''
+  await loadProducts()
+}
 async function toggle() {
   if (toggling.value || workStatus.value === 'BUSY') return
   const target = workStatus.value === 'AVAILABLE' ? 'OFFLINE' : 'AVAILABLE'
@@ -231,9 +239,9 @@ function parsePrice(value: string) { const text = value.trim(); if (!text) retur
 
 <style scoped lang="scss">
 .catalog-hero{position:relative;padding:20rpx 12rpx 22rpx}.catalog-hero .muted{padding-right:82rpx;color:#748078;font-size:21rpx}.seal{position:absolute;right:18rpx;top:10rpx;padding:9rpx 8rpx;border:3rpx double #963d31;color:#963d31;font-family:STKaiti,KaiTi,serif;transform:rotate(5deg)}.search{height:82rpx;margin-top:18rpx;padding:0 22rpx;border:1rpx solid rgba(49,92,80,.22);border-radius:42rpx;display:flex;align-items:center;background:rgba(255,252,241,.92);box-shadow:0 8rpx 22rpx rgba(35,53,43,.05)}.search image{width:34rpx;height:34rpx}.search input{flex:1;margin-left:15rpx;font-size:25rpx}.search>text{width:48rpx;height:48rpx;border-radius:50%;color:#78857d;background:rgba(49,92,80,.08);font-size:32rpx;line-height:45rpx;text-align:center}.game-scroll,.category-scroll,.option-scroll{white-space:nowrap}.filter-row,.category-row{display:flex;gap:14rpx;padding:10rpx 2rpx 18rpx}.filter-chip,.category{padding:16rpx 24rpx;border:1rpx solid rgba(49,92,80,.18);border-radius:30rpx;color:#6f7c74;background:rgba(255,252,241,.74);font-size:23rpx}.filter-chip.active,.category.active{border-color:#315c50;color:#fffaf0;background:#315c50}.category-row{padding-top:0}.category{padding:12rpx 20rpx;border-radius:26rpx;font-size:21rpx}.catalog-filters{margin:5rpx 0 22rpx;padding:20rpx 18rpx;border:1rpx solid rgba(49,92,80,.16);border-radius:10rpx 28rpx 10rpx 28rpx;background:rgba(255,252,241,.82)}.filter-line,.price-filter{min-height:62rpx;display:flex;align-items:center}.filter-label{width:72rpx;flex:none;color:#334c40;font-size:21rpx;font-weight:800}.option-scroll{min-width:0;flex:1}.option-row{display:flex;align-items:center;gap:10rpx}.mini-chip{padding:9rpx 16rpx;border:1rpx solid rgba(49,92,80,.16);border-radius:20rpx;color:#728078;background:#f5f1e5;font-size:19rpx}.mini-chip.active{border-color:#315c50;color:#fffaf0;background:#315c50}.filter-hint{color:#9aa19d;font-size:18rpx}.price-filter{margin-top:7rpx}.price-input{min-width:0;flex:1;display:flex;align-items:center;gap:9rpx}.price-input input{width:112rpx;height:52rpx;padding:0 14rpx;border:1rpx solid rgba(49,92,80,.2);border-radius:16rpx;box-sizing:border-box;background:#f8f5ea;font-size:20rpx}.price-input text{color:#929991;font-size:18rpx}.price-apply{margin-left:12rpx;padding:10rpx 17rpx;border-radius:17rpx;color:#fffaf0;background:#8b6945;font-size:19rpx}.sort-row{margin-top:14rpx;padding-top:15rpx;border-top:1rpx solid rgba(49,92,80,.1);display:flex;justify-content:space-between}.sort-row view{padding:8rpx 10rpx;color:#7b867f;font-size:19rpx}.sort-row view.active{color:#963d31;font-weight:800}.section-head{margin:24rpx 4rpx 20rpx;display:flex;align-items:center;justify-content:space-between}.section-head>view text{font-family:STKaiti,KaiTi,serif;font-size:34rpx;font-weight:800}.section-head label{margin-left:14rpx;color:#7e8982;font-size:20rpx}.ink-mark{color:#963d31;font-family:STKaiti,KaiTi,serif}.product-card{margin-bottom:20rpx;padding:20rpx;border:1rpx solid rgba(49,92,80,.18);border-radius:9rpx 26rpx 9rpx 26rpx;display:flex;background:rgba(255,252,241,.92);box-shadow:0 8rpx 24rpx rgba(41,57,48,.06)}.cover{position:relative;width:168rpx;height:168rpx;flex:none;overflow:hidden;border-radius:7rpx 24rpx 7rpx 24rpx;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#f7f0db;background:linear-gradient(145deg,#547466,#253f36)}.cover.valorant{background:linear-gradient(145deg,#8d654f,#394a3f)}.cover image{width:100%;height:100%}.cover>text{font-family:STKaiti,KaiTi,serif;font-size:32rpx;font-weight:800}.cover>label{margin-top:10rpx;padding:4rpx 12rpx;border:1rpx solid rgba(255,255,255,.45);font-size:18rpx}.product-main{min-width:0;flex:1;margin-left:22rpx}.tags{display:flex;gap:8rpx}.tags text{padding:5rpx 10rpx;color:#4d685d;background:#e1e8dc;font-size:17rpx}.tags text+text{color:#8b643e;background:#eee2cc}.product-name{margin-top:13rpx;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:#1b2923;font-size:28rpx;font-weight:800}.subtitle{height:58rpx;margin-top:9rpx;overflow:hidden;color:#7c867f;font-size:20rpx;line-height:29rpx}.product-foot{margin-top:8rpx;display:flex;align-items:flex-end;justify-content:space-between}.price-line{display:flex;align-items:baseline;flex:none;color:#963d31;white-space:nowrap}.currency{margin-right:3rpx;font-size:21rpx}.price-value{font-size:34rpx;font-weight:800;line-height:1}.price-suffix{margin-left:7rpx;color:#8d8175;font-size:18rpx}.detail{flex:none;color:#315c50;font-size:20rpx}.loading{padding:70rpx;color:#78847c;text-align:center}.player-quick-status{padding:25rpx 24rpx;border:1rpx solid rgba(49,92,80,.16);border-radius:24rpx;display:flex;align-items:center;justify-content:space-between;background:#fffaf0}.player-quick-status text,.player-quick-status label{display:block}.player-quick-status text{color:#7b867f;font-size:20rpx}.player-quick-status label{margin-top:7rpx;color:#315c50;font-size:32rpx;font-weight:800}.player-quick-status button{height:62rpx;margin:0;padding:0 24rpx;border-radius:31rpx;color:#fffaf0;background:#315c50;line-height:62rpx;font-size:21rpx}.player-quick-menu{margin-top:18rpx;padding:0 23rpx;border:1rpx solid rgba(49,92,80,.15);border-radius:24rpx;background:#fffaf0}.player-quick-menu>view{min-height:102rpx;border-bottom:1rpx solid rgba(49,92,80,.1);display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:14rpx}.player-quick-menu>view:last-child{border:0}.player-quick-menu text{font-size:25rpx;font-weight:700}.player-quick-menu label{color:#89928c;font-size:18rpx}.player-quick-menu strong{color:#8d9891;font-size:35rpx;font-weight:400}
-.catalog-controls{height:78rpx;margin:2rpx 0 0;padding:0 8rpx;border-top:1rpx solid rgba(49,92,80,.11);border-bottom:1rpx solid rgba(49,92,80,.11);display:flex;align-items:center;background:rgba(247,243,231,.78)}
+.catalog-controls{height:88rpx;margin:2rpx 0 0;padding:0 4rpx 0 8rpx;border-top:1rpx solid rgba(49,92,80,.11);border-bottom:1rpx solid rgba(49,92,80,.11);display:flex;align-items:center;background:rgba(247,243,231,.78)}
 .catalog-controls .sort-row{min-width:0;flex:1;margin:0;padding:0;border:0;display:grid;grid-template-columns:repeat(4,1fr)}.catalog-controls .sort-row view{position:relative;padding:25rpx 4rpx;color:#758078;font-size:20rpx;text-align:center}.catalog-controls .sort-row view.active{color:#963d31;font-weight:800}.catalog-controls .sort-row view.active::after{content:'';position:absolute;left:32%;right:32%;bottom:8rpx;height:4rpx;border-radius:3rpx;background:#963d31}
-.filter-trigger{height:52rpx;flex:none;margin-left:7rpx;padding:0 13rpx;border-left:1rpx solid rgba(49,92,80,.14);display:flex;align-items:center;gap:5rpx;color:#52665c;font-size:20rpx}.filter-trigger.active{color:#963d31;font-weight:800}.filter-trigger label{min-width:25rpx;height:25rpx;padding:0 4rpx;border-radius:13rpx;box-sizing:border-box;color:#fff;background:#963d31;font-size:16rpx;line-height:25rpx;text-align:center}
+.filter-trigger{position:relative;width:122rpx;height:88rpx;flex:none;margin-left:3rpx;padding:0 12rpx 0 17rpx;border-left:1rpx solid rgba(49,92,80,.12);box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:9rpx;color:#617168;font-size:20rpx}.filter-trigger image{width:28rpx;height:28rpx;opacity:.68}.filter-trigger.active{color:#315c50;font-weight:700}.filter-trigger.active image{opacity:1}.filter-dot{position:absolute;right:10rpx;top:22rpx;width:10rpx;height:10rpx;border:2rpx solid #f5f0e3;border-radius:50%;background:#963d31}
 .selected-scroll{white-space:nowrap}.selected-row{padding:15rpx 2rpx 3rpx;display:flex;align-items:center;gap:10rpx}.selected-chip{padding:8rpx 14rpx;border:1rpx solid rgba(150,61,49,.22);border-radius:20rpx;color:#7e493f;background:#f2e5d8;font-size:18rpx}.clear-filter{padding:8rpx 10rpx;color:#7d8780;font-size:18rpx}
 .filter-mask{position:fixed;z-index:200;inset:0;display:flex;align-items:flex-end;background:rgba(12,24,19,.5);animation:mask-in .18s ease}.filter-sheet{width:100%;max-height:82vh;padding-bottom:calc(18rpx + env(safe-area-inset-bottom));border-radius:34rpx 34rpx 0 0;box-sizing:border-box;background:#f7f2e4;box-shadow:0 -18rpx 50rpx rgba(15,30,24,.2);animation:sheet-up .22s ease-out}.sheet-handle{width:74rpx;height:7rpx;margin:16rpx auto 8rpx;border-radius:5rpx;background:#c7c3b6}.filter-sheet-head{padding:10rpx 28rpx 22rpx;display:flex;align-items:center;justify-content:space-between}.filter-sheet-head>view text,.filter-sheet-head>view label{display:block}.filter-sheet-head>view text{color:#21352c;font-family:STKaiti,KaiTi,serif;font-size:34rpx;font-weight:800}.filter-sheet-head>view label{margin-top:5rpx;color:#899089;font-size:18rpx}.filter-sheet-head>text{width:54rpx;height:54rpx;border-radius:50%;color:#6d7770;background:#ebe6d8;font-size:37rpx;line-height:50rpx;text-align:center}.filter-sheet-body{height:56vh;padding:0 28rpx;box-sizing:border-box}.filter-group{padding:18rpx 0 10rpx;border-top:1rpx solid rgba(49,92,80,.1)}.filter-title{margin-bottom:15rpx;color:#2c4037;font-size:23rpx;font-weight:800}.filter-title text{margin-left:10rpx;color:#9a9f99;font-size:17rpx;font-weight:400}.sheet-options{display:flex;flex-wrap:wrap;gap:13rpx 12rpx}.sheet-chip{min-width:142rpx;padding:14rpx 18rpx;border:1rpx solid transparent;border-radius:20rpx;box-sizing:border-box;color:#68766f;background:#ebe8db;font-size:20rpx;text-align:center}.sheet-chip.active{border-color:#315c50;color:#fffaf0;background:#315c50;box-shadow:0 5rpx 13rpx rgba(49,92,80,.16)}.sheet-price{display:flex;align-items:center;gap:14rpx}.sheet-price>view{height:68rpx;min-width:0;flex:1;padding:0 18rpx;border:1rpx solid rgba(49,92,80,.15);border-radius:20rpx;display:flex;align-items:center;background:#fffdf5}.sheet-price>view text{color:#963d31;font-size:21rpx}.sheet-price input{min-width:0;flex:1;margin-left:8rpx;font-size:22rpx}.sheet-price>label{color:#a4a59f}.filter-actions{padding:18rpx 28rpx 0;display:grid;grid-template-columns:1fr 2fr;gap:14rpx;border-top:1rpx solid rgba(49,92,80,.1)}.filter-actions button{height:78rpx;margin:0;border-radius:39rpx;font-size:24rpx;line-height:78rpx}.filter-actions button::after{border:0}.reset-button{color:#40584d;background:#e8e5d8}.result-button{color:#fffaf0;background:linear-gradient(110deg,#315c50,#23453b)}
 .package-ribbon{position:absolute;left:0;top:0;padding:7rpx 13rpx 8rpx;border-radius:0 0 16rpx 0;color:#fff8e8;background:rgba(150,61,49,.9);font-size:16rpx;font-weight:700}.product-card{position:relative;border-radius:22rpx;padding:17rpx}.cover{width:178rpx;height:178rpx;border-radius:18rpx}.product-main{margin-left:20rpx}.product-name{font-size:27rpx}.subtitle{height:54rpx;line-height:27rpx}.section-head{margin-top:28rpx}.detail{padding:9rpx 14rpx;border-radius:22rpx;color:#fffaf0;background:#315c50;font-size:18rpx}.detail text{margin-left:3rpx}

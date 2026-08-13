@@ -138,6 +138,7 @@ import { getPlayerOrders, getWorkbench } from '@/api/player'
 import { getCustomerOrderSummary, getCustomerWallet } from '@/api/customer'
 import { assetUrl } from '@/services/http'
 import { navigateToWithLogin, requireLogin } from '@/utils/auth-guard'
+import { getPlayerOrderUnreadSummary } from '@/utils/order-status'
 import type { RecordData } from '@/types/api'
 
 const auth = useAuthStore()
@@ -146,6 +147,7 @@ const workbench = ref<RecordData>({})
 const walletSummary = ref<RecordData>({})
 const orderSummary = ref<Record<string, number>>({})
 const playerOrderSummary = ref<Record<string, number>>({})
+const playerOrderUnreadSummary = ref<Record<string, number>>({})
 const roleSheetVisible = ref(false)
 const userDetailsVisible = ref(false)
 onShow(async () => {
@@ -162,6 +164,7 @@ onShow(async () => {
       if (status) summary[status] = (summary[status] || 0) + 1
       return summary
     }, {})
+    playerOrderUnreadSummary.value = getPlayerOrderUnreadSummary(playerOrders, Number(auth.user?.userId || 0))
   }
   if (auth.loggedIn && !mode.isPlayerMode) {
     const [wallet, summary] = await Promise.all([getCustomerWallet().catch(() => ({})), getCustomerOrderSummary().catch(() => ({}))])
@@ -237,10 +240,10 @@ const customerOrderEntries = computed(() => [
   { label: '售后', status: 'AFTER_SALE', icon: '/static/icons/after-sale.png', background: '#dde4db', count: Number(orderSummary.value.AFTER_SALE || 0) },
 ])
 const playerOrderEntries = computed(() => [
-  { label: '待开始', status: 'ASSIGNED', icon: '/static/icons/hourglass.png', background: '#eee2c8', count: Number(playerOrderSummary.value.ASSIGNED || 0) },
-  { label: '服务中', status: 'IN_SERVICE', icon: '/static/icons/gamepad.png', background: '#dce8dd', count: Number(playerOrderSummary.value.IN_SERVICE || 0) },
-  { label: '待审核', status: 'REVIEW', icon: '/static/icons/check.png', background: '#efe0d7', count: Number(playerOrderSummary.value.PENDING_CONFIRM || 0) + Number(playerOrderSummary.value.WAIT_CUSTOMER_CONFIRM || 0) },
-  { label: '已完成', status: 'COMPLETED', icon: '/static/icons/orders-active.png', background: '#dfe6da', count: Number(playerOrderSummary.value.COMPLETED || 0) },
+  { label: '待开始', status: 'ASSIGNED', icon: '/static/icons/hourglass.png', background: '#eee2c8', count: Number(playerOrderUnreadSummary.value.ASSIGNED || 0) },
+  { label: '服务中', status: 'IN_SERVICE', icon: '/static/icons/gamepad.png', background: '#dce8dd', count: Number(playerOrderUnreadSummary.value.IN_SERVICE || 0) },
+  { label: '待审核', status: 'REVIEW', icon: '/static/icons/check.png', background: '#efe0d7', count: Number(playerOrderUnreadSummary.value.REVIEW || 0) },
+  { label: '已完成', status: 'COMPLETED', icon: '/static/icons/orders-active.png', background: '#dfe6da', count: Number(playerOrderUnreadSummary.value.COMPLETED || 0) },
 ])
 const orderEntries = computed(() => mode.isPlayerMode ? playerOrderEntries.value : customerOrderEntries.value)
 const orderSectionTitle = computed(() => mode.isPlayerMode ? '我的服务单' : '我的订单')
