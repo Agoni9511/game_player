@@ -32,6 +32,8 @@ public class OrderMemberService {
  }
 
  public boolean belongs(long orderId,long playerId){return data.activeMemberExists(orderId,playerId)>0;}
+ public boolean belongsHistorically(long orderId,long playerId){return data.memberExistsAnyStatus(orderId,playerId)>0;}
+ public Map<String,Object> member(long orderId,long playerId){return data.member(orderId,playerId);}
  public List<Map<String,Object>> members(long orderId){return data.members(orderId);}
  public List<Long> activePlayerIds(long orderId){return data.activePlayerIds(orderId);}
  public void updateStatuses(long orderId,String status){data.updateStatuses(orderId,status);}

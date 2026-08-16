@@ -6,3 +6,7 @@ import PlayerDispatchList from '@/components/PlayerDispatchList.vue'
 const board = ref<InstanceType<typeof PlayerDispatchList>>()
 onShow(() => board.value?.load())
 </script>
+
+<style>
+page { min-height: 100%; }
+</style>

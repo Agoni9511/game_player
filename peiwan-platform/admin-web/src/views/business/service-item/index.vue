@@ -40,6 +40,10 @@
           ><template #default="{ row }"
             ><ElTag>{{ typeText(row.serviceType) }}</ElTag></template
           ></ElTableColumn
+        ><ElTableColumn label="服务用途" width="125"
+          ><template #default="{ row }"
+            ><ElTag :type="row.usageType==='PACKAGE_ONLY'?'warning':'success'">{{ usageText(row.usageType) }}</ElTag></template
+          ></ElTableColumn
         ><ElTableColumn
           prop="description"
           label="说明"
@@ -83,11 +87,14 @@
               :key="x.value"
               :label="x.label"
               :value="x.value" /></ElSelect></ElFormItem
+        ><ElFormItem label="服务用途" required
+          ><ElRadioGroup v-model="form.usageType"><ElRadioButton value="STANDALONE">独立售卖</ElRadioButton><ElRadioButton value="PACKAGE_ONLY">仅作套餐组成</ElRadioButton></ElRadioGroup></ElFormItem
         ><ElFormItem label="服务说明"
           ><ElInput v-model="form.description" type="textarea" :rows="3" /></ElFormItem
         ><ElFormItem label="排序"><ElInputNumber v-model="form.sortNo" :min="0" /></ElFormItem
         ><ElFormItem label="启用"><ElSwitch v-model="form.enabled" /></ElFormItem></ElForm
-      ><div class="flex items-center justify-between mb-3"><div><span class="font-medium">陪玩等级单价</span><span class="ml-2 text-xs text-gray-400">这里配置每人每小时 / 每局 / 每单的基础价格</span></div><ElButton plain type="primary" @click="addPricingUnit">新增计价单位</ElButton></div>
+      ><ElAlert class="mb-3" type="info" :closable="false" :title="form.usageType==='PACKAGE_ONLY'?'该服务仅用于描述套餐内容，无需配置价格；如业务需要也可以保留参考单价。':'等级单价为可选项；未配置时，单项服务下单使用 SKU 兜底价。'" />
+      <div class="flex items-center justify-between mb-3"><div><span class="font-medium">陪玩等级单价（可选）</span><span class="ml-2 text-xs text-gray-400">按每人每小时 / 每局 / 每单配置</span></div><ElButton plain type="primary" @click="addPricingUnit">新增计价单位</ElButton></div>
       <ElTable :data="pricingUnits" border>
         <ElTableColumn label="计价单位" width="130"><template #default="{row}"><ElSelect v-model="row.unitType"><ElOption v-for="u in unusedUnits(row.unitType)" :key="u.value" :label="u.label" :value="u.value" /></ElSelect></template></ElTableColumn>
         <ElTableColumn v-for="level in playerLevels" :key="level.id" :label="`${level.levelName}单价`" min-width="145"><template #default="{row}"><ElInputNumber v-model="priceEntry(row.unitType,level.id).price" :min="0" :precision="2" :controls="false" placeholder="未配置" class="!w-full" /></template></ElTableColumn>
@@ -139,7 +146,8 @@
       { value: 'MAP_CLEAR', label: '清图' },
       { value: 'CUSTOM', label: '专项服务' }
     ],
-    typeText = (v: string) => types.find((x) => x.value === v)?.label || v
+    typeText = (v: string) => types.find((x) => x.value === v)?.label || v,
+    usageText = (v: string) => v === 'PACKAGE_ONLY' ? '仅套餐组成' : '独立售卖'
   const actions = computed(() => [
     ...(has('business:service:update')
       ? [{ key: 'edit', label: '编辑', icon: 'ri:edit-line' }]
@@ -183,12 +191,14 @@
         serviceCode: generateBusinessCode('service'),
         serviceName: '',
         serviceType: 'COMPANION',
+        usageType: 'STANDALONE',
         description: '',
         sortNo: 0,
         enabled: true,
         levelPrices: []
       }
     )
+    form.usageType ||= 'STANDALONE'
     playerLevels.value = form.gameId ? await fetchPlayerLevels(form.gameId) : []
     pricingUnits.value = [...new Set((form.levelPrices || []).map((x:any)=>x.unitType))].map((unitType)=>({unitType}))
     if (!pricingUnits.value.length) addPricingUnit()

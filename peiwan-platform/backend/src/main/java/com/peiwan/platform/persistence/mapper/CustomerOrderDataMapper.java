@@ -6,6 +6,7 @@ public interface CustomerOrderDataMapper{
  @Select("select s.service_status order_status,count(*) total from pw_trade_order t join pw_service_order s on s.order_id=t.id where t.customer_id=#{uid} and t.business_type='PLAYER_SERVICE' group by s.service_status") List<Map<String,Object>> ownOrderCounts(long uid);
  @Select("select t.*,s.service_status order_status,s.requested_player_id,s.requested_player_level_id,s.player_level_code,s.player_level_name,s.required_player_count,s.pricing_mode,s.price_type sku_price_type,s.base_unit_price,s.contact_name,s.contact_phone,s.assigned_at,s.service_started_at,s.completion_submitted_at,s.customer_confirm_deadline,s.customer_confirmed_at from pw_trade_order t join pw_service_order s on s.order_id=t.id where t.id=#{id} and t.customer_id=#{uid} and t.business_type='PLAYER_SERVICE'") Map<String,Object> ownDetail(long id,long uid);
  @Select("select product_name,sku_name,quantity,unit_price,service_snapshot from pw_order_item where order_id=#{id}") List<Map<String,Object>> items(long id);
+ @Select("select id,rule_type,title,target_value,target_unit,description,failure_action,sort_no from pw_order_commitment where order_id=#{id} order by sort_no,id") List<Map<String,Object>> orderCommitments(long id);
  @Select("select * from pw_order_game_profile where order_id=#{id} limit 1") Map<String,Object> gameProfile(long id);
  @Select("select * from pw_fulfillment where order_id=#{id} limit 1") Map<String,Object> fulfillment(long id);
  @Select("select proof_url from pw_fulfillment_proof where fulfillment_id=#{id} order by sort_no") List<String> fulfillmentProofs(long id);
@@ -14,5 +15,5 @@ public interface CustomerOrderDataMapper{
  @Select("select a.*,t.order_no,s.service_status order_status,u.username customer_name from pw_after_sale a join pw_trade_order t on t.id=a.order_id join pw_service_order s on s.order_id=t.id join sys_user u on u.id=a.customer_id where a.id=#{id}") Map<String,Object> afterSaleDetail(long id);
  @Select("select proof_url from pw_after_sale_proof where after_sale_id=#{id} order by sort_no") List<String> afterSaleProofs(long id);
  @Select("select * from pw_after_sale_log where after_sale_id=#{id} order by id") List<Map<String,Object>> afterSaleLogs(long id);
- @Select("select count(*) from pw_order_member m join pw_service_order s on s.order_id=m.order_id where m.player_id=#{id} and m.member_status in('ACCEPTED','IN_SERVICE') and s.service_status in('WAIT_ASSIGN','ASSIGNED','IN_SERVICE','PENDING_CONFIRM','WAIT_CUSTOMER_CONFIRM','AFTER_SALE')") long activePlayerOrders(long id);
+@Select("select count(*) from pw_order_member m join pw_service_order s on s.order_id=m.order_id where m.player_id=#{id} and m.member_status in('ACCEPTED','IN_SERVICE') and s.service_status in('WAIT_ASSIGN','ASSIGNED','IN_SERVICE','PAUSED','PENDING_CONFIRM','WAIT_CUSTOMER_CONFIRM','AFTER_SALE')") long activePlayerOrders(long id);
 }

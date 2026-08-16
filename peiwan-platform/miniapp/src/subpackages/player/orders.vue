@@ -13,3 +13,7 @@ const initialTab = ref('ALL')
 onLoad(query => { initialTab.value = String(query?.status || 'ALL') })
 onShow(() => list.value?.load())
 </script>
+
+<style>
+page { min-height: 100%; }
+</style>

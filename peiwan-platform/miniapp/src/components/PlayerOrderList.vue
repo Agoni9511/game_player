@@ -9,8 +9,8 @@
     </scroll-view>
 
     <view class="content">
-      <view v-for="order in filteredOrders" :key="String(order.id)" class="order-ticket" :class="statusClass(String(order.orderStatus))" @click="open(Number(order.id))">
-        <view class="ticket-status"><text />{{ statusText(String(order.orderStatus)) }}</view>
+      <view v-for="order in filteredOrders" :key="String(order.id)" class="order-ticket" :class="statusClass(order)" @click="open(Number(order.id))">
+        <view class="ticket-status"><text />{{ statusText(order) }}</view>
         <view class="ticket-game"><view class="game-mark"><image src="/static/icons/gamepad.png" /></view><view><text>{{ order.gameName || '游戏陪玩服务' }}</text><label>{{ order.productName || '服务商品' }}</label></view></view>
         <view class="ticket-spec">{{ order.skuName || '默认规格' }}</view>
         <view class="ticket-meta"><text>{{ [order.serverName,order.rankName].filter(Boolean).join(' · ') || '区服段位待确认' }}</text><label>{{ order.memberCount || 0 }}/{{ order.requiredPlayerCount || 1 }} 位陪玩</label></view>
@@ -19,8 +19,8 @@
         <view class="ticket-foot">
           <view class="amount"><text>¥</text>{{ money(order.payableAmount) }}</view>
           <view class="actions" @click.stop>
-            <button v-if="order.orderStatus==='ASSIGNED'" size="mini" class="primary small" @click="start(order)">开始服务</button>
-            <button v-else-if="order.orderStatus==='IN_SERVICE'" size="mini" class="primary small" @click="submit(order)">提交完成</button>
+            <button v-if="canStart(order)" size="mini" class="primary small" @click="start(order)">开始服务</button>
+            <button v-else-if="canSubmit(order)" size="mini" class="primary small" @click="submit(order)">提交完成</button>
             <button v-else-if="isAbnormal(String(order.orderStatus))" size="mini" class="outline small" @click="contact(order)">联系客服</button>
             <button v-else size="mini" class="outline small" @click="open(Number(order.id))">查看详情</button>
           </view>
@@ -46,18 +46,21 @@ const auth=useAuthStore()
 const activeTab=ref('ALL'),orders=ref<RecordData[]>([]),loading=ref(false)
 watch(()=>props.initialTab,value=>{if(tabs.some(tab=>tab.key===value))activeTab.value=value},{immediate:true})
 watch(activeTab,markVisibleOrdersSeen)
-const filteredOrders=computed(()=>activeTab.value==='ALL'?orders.value:orders.value.filter(item=>activeTab.value==='REVIEW'?['PENDING_CONFIRM','WAIT_CUSTOMER_CONFIRM'].includes(String(item.orderStatus)):item.orderStatus===activeTab.value))
+const filteredOrders=computed(()=>activeTab.value==='ALL'?orders.value:orders.value.filter(item=>matchesTab(item,activeTab.value)))
 const activeLabel=computed(()=>tabs.find(tab=>tab.key===activeTab.value)?.label||'')
 onMounted(load)
 defineExpose({ load })
 async function load(){loading.value=true;try{const records=(await getPlayerOrders()).records||[];orders.value=await Promise.all(records.map(async item=>{try{return{...item,...await getPlayerOrder(Number(item.id))}}catch{return item}}));markVisibleOrdersSeen()}finally{loading.value=false}}
 function markVisibleOrdersSeen(){if(!orders.value.length||!auth.user?.userId)return;markPlayerOrdersSeen(orders.value,auth.user.userId,activeTab.value as PlayerOrderCategory|'ALL')}
-function countFor(key:string){if(key==='ALL')return orders.value.length;if(key==='REVIEW')return orders.value.filter(x=>['PENDING_CONFIRM','WAIT_CUSTOMER_CONFIRM'].includes(String(x.orderStatus))).length;return orders.value.filter(x=>x.orderStatus===key).length}
-function statusText(status:string){return({ASSIGNED:'待开始',IN_SERVICE:'服务中',PENDING_CONFIRM:'平台审核中',WAIT_CUSTOMER_CONFIRM:'待顾客确认',COMPLETED:'已完成',CANCELLED:'已取消',AFTER_SALE:'售后处理中'}as Record<string,string>)[status]||status}
-function statusClass(status:string){if(status==='IN_SERVICE')return'working';if(['PENDING_CONFIRM','WAIT_CUSTOMER_CONFIRM'].includes(status))return'review';if(status==='COMPLETED')return'done';if(isAbnormal(status))return'abnormal';return'waiting'}
+function matchesTab(order:RecordData,key:string){if(key==='REVIEW')return['PENDING_CONFIRM','WAIT_CUSTOMER_CONFIRM'].includes(String(order.orderStatus));if(key==='ASSIGNED')return canStart(order);if(key==='IN_SERVICE')return['IN_SERVICE','PAUSED'].includes(String(order.orderStatus))&&order.memberStatus==='IN_SERVICE';return order.orderStatus===key}
+function countFor(key:string){if(key==='ALL')return orders.value.length;return orders.value.filter(x=>matchesTab(x,key)).length}
+function canStart(order:RecordData){return['ASSIGNED','IN_SERVICE'].includes(String(order.orderStatus))&&order.memberStatus==='ACCEPTED'}
+function canSubmit(order:RecordData){return order.orderStatus==='IN_SERVICE'&&order.memberStatus==='IN_SERVICE'}
+function statusText(order:RecordData){if(canStart(order)&&order.orderStatus==='IN_SERVICE')return'待本人开始';const status=String(order.orderStatus);return({ASSIGNED:'待开始',IN_SERVICE:'服务中',PAUSED:'已暂停',PENDING_CONFIRM:'平台审核中',WAIT_CUSTOMER_CONFIRM:'待顾客确认',COMPLETED:'已完成',CANCELLED:'已取消',AFTER_SALE:'售后处理中'}as Record<string,string>)[status]||status}
+function statusClass(order:RecordData){const status=String(order.orderStatus);if(canSubmit(order))return'working';if(['PAUSED','PENDING_CONFIRM','WAIT_CUSTOMER_CONFIRM'].includes(status))return'review';if(status==='COMPLETED')return'done';if(isAbnormal(status))return'abnormal';return'waiting'}
 function money(value:unknown){const amount=Number(value||0);return amount.toFixed(2)}
 function formatTime(value:unknown){if(!value)return'--';return String(value).replace('T',' ').slice(0,16)}
-function appointmentText(order:RecordData){return order.serviceStartedAt?`已于 ${formatTime(order.serviceStartedAt)} 开始`:order.assignedAt?`接单时间 ${formatTime(order.assignedAt)}`:'未设置预约时间'}
+function appointmentText(order:RecordData){if(order.orderStatus==='PAUSED')return'订单暂停期间不可提交完成凭证';if(canStart(order)&&order.orderStatus==='IN_SERVICE')return'队友已开始服务，请确认本人开始';return order.serviceStartedAt?`已于 ${formatTime(order.serviceStartedAt)} 开始`:order.assignedAt?`接单时间 ${formatTime(order.assignedAt)}`:'未设置预约时间'}
 function reviewHint(order:RecordData){if(order.orderStatus==='PENDING_CONFIRM')return'完成凭证已提交，等待平台审核';if(order.orderStatus==='WAIT_CUSTOMER_CONFIRM')return'平台审核已通过，等待顾客确认完成';return''}
 function isAbnormal(status:string){return['CANCELLED','AFTER_SALE'].includes(status)}
 function open(id:number){uni.navigateTo({url:`/subpackages/player/order-detail?id=${id}`})}

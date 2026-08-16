@@ -241,7 +241,7 @@ class RbacFlowTest {
   @Test void serviceOrderUsesPlayerLevelPriceAndSnapshotsLevel() throws Exception {
     String admin=login("admin","Test-Only-Password-9x!");
     long customerId=db.queryForObject("select id from sys_user where username='admin'",Long.class);
-    long skuId=db.queryForObject("select id from pw_product_sku where sku_code='delta-escort-1game'",Long.class);
+    long skuId=legacySku("delta-escort-1game");
     long levelId=db.queryForObject("select l.id from pw_player_level l join pw_product p on p.game_id=l.game_id join pw_product_sku k on k.product_id=p.id where k.id=? and l.level_code='PRO'",Long.class,skuId);
     var expected=db.queryForObject("select sp.price*k.unit_count from pw_product_sku k join pw_product_service ps on ps.product_id=k.product_id join pw_service_level_price sp on sp.service_id=ps.service_id and sp.unit_type=k.unit_type where k.id=? and sp.player_level_id=?",java.math.BigDecimal.class,skuId,levelId);
     String body="{\"customerId\":"+customerId+",\"skuId\":"+skuId+",\"playerLevelId\":"+levelId+",\"quantity\":1,\"contactName\":\"等级价测试\",\"contactPhone\":\"13800000000\",\"gameAccount\":\"level-test\",\"gameNickname\":\"等级测试\"}";
@@ -258,7 +258,7 @@ class RbacFlowTest {
   @Test void dispatchCandidateAndSingleWinnerRules() throws Exception {
     String admin=login("admin","Test-Only-Password-9x!");
     long customerId=db.queryForObject("select id from sys_user where username='admin'",Long.class);
-    long skuId=db.queryForObject("select id from pw_product_sku where sku_code='delta-escort-1game'",Long.class);
+    long skuId=legacySku("delta-escort-1game");
     var orderCreated=mvc.perform(post("/api/business/order").header("Authorization",admin).contentType(MediaType.APPLICATION_JSON)
       .content("{\"customerId\":"+customerId+",\"skuId\":"+skuId+",\"quantity\":1,\"gameAccount\":\"dispatch-test\"}"))
       .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
@@ -266,13 +266,11 @@ class RbacFlowTest {
     fundAndPay(admin,orderId,"dispatch-pay");
     mvc.perform(get("/api/business/dispatch/eligible/{orderId}",orderId).header("Authorization",admin))
       .andExpect(status().isOk()).andExpect(jsonPath("$.data[0].playerId").isNumber());
-    var created=mvc.perform(post("/api/business/dispatch").header("Authorization",admin).contentType(MediaType.APPLICATION_JSON)
-      .content("{\"orderId\":"+orderId+",\"dispatchMode\":\"GRAB\"}"))
-      .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
-    long taskId=json.readTree(created).at("/data/id").asLong();
+    long taskId=db.queryForObject("select id from pw_dispatch_task where order_id=? and task_status='DISPATCHING'",Long.class,orderId);
+    assertThat(db.queryForObject("select dispatch_mode from pw_dispatch_task where id=?",String.class,taskId)).isEqualTo("GRAB");
     var candidates=db.queryForList("select player_id from pw_dispatch_candidate where task_id=? order by id",Long.class,taskId);
     assertThat(candidates).isNotEmpty();
-    long winner=candidates.getFirst();
+    long winner=candidates.get(0);
     mvc.perform(put("/api/business/dispatch/{id}/respond",taskId).header("Authorization",admin).contentType(MediaType.APPLICATION_JSON)
       .content("{\"playerId\":"+winner+",\"action\":\"ACCEPT\",\"reason\":\"模拟抢单\"}"))
       .andExpect(status().isOk());
@@ -289,19 +287,18 @@ class RbacFlowTest {
   @Test void multiPlayerOrderFillsOnlyAfterAllMembersJoin() throws Exception {
     String admin=login("admin","Test-Only-Password-9x!");
     long customerId=db.queryForObject("select id from sys_user where username='admin'",Long.class);
-    long skuId=db.queryForObject("select id from pw_product_sku where sku_code='delta-escort-1game'",Long.class);
+    long skuId=legacySku("delta-escort-1game");
     long orderId=json.readTree(mvc.perform(post("/api/business/order").header("Authorization",admin).contentType(MediaType.APPLICATION_JSON)
       .content("{\"customerId\":"+customerId+",\"skuId\":"+skuId+",\"quantity\":1,\"gameAccount\":\"multi-member-test\"}"))
       .andExpect(status().isOk()).andReturn().getResponse().getContentAsString()).at("/data/id").asLong();
-    fundAndPay(admin,orderId,"multi-member-pay");
     db.update("update pw_service_order set required_player_count=2 where order_id=?",orderId);
     long gameId=db.queryForObject("select game_id from pw_order_game_profile where order_id=?",Long.class,orderId);
     Long levelId=db.queryForObject("select requested_player_level_id from pw_service_order where order_id=?",Long.class,orderId);
     db.update("update pw_player set work_status='AVAILABLE',max_active_orders=5 where player_no in('DEMO-PW-001','DEMO-PW-002')");
     db.update("update pw_player_game set price_level_id=?,audit_status='APPROVED',enabled=true where game_id=? and player_id in(select id from pw_player where player_no in('DEMO-PW-001','DEMO-PW-002'))",levelId,gameId);
-    long taskId=json.readTree(mvc.perform(post("/api/business/dispatch").header("Authorization",admin).contentType(MediaType.APPLICATION_JSON)
-      .content("{\"orderId\":"+orderId+",\"dispatchMode\":\"GRAB\"}"))
-      .andExpect(status().isOk()).andReturn().getResponse().getContentAsString()).at("/data/id").asLong();
+    fundAndPay(admin,orderId,"multi-member-pay");
+    long taskId=db.queryForObject("select id from pw_dispatch_task where order_id=? and task_status='DISPATCHING'",Long.class,orderId);
+    assertThat(db.queryForObject("select dispatch_mode from pw_dispatch_task where id=?",String.class,taskId)).isEqualTo("GRAB");
     var candidates=db.queryForList("select player_id from pw_dispatch_candidate where task_id=? order by id",Long.class,taskId);
     assertThat(candidates).hasSizeGreaterThanOrEqualTo(2);
     long first=candidates.get(0),second=candidates.get(1);
@@ -325,6 +322,8 @@ class RbacFlowTest {
       .andExpect(jsonPath("$.data.memberCount").value(2)).andExpect(jsonPath("$.data.members.length()").value(2));
     mvc.perform(put("/api/business/order/{id}/status",orderId).header("Authorization",admin).contentType(MediaType.APPLICATION_JSON).content("{\"status\":\"IN_SERVICE\"}"))
       .andExpect(status().isOk());
+    assertThat(db.queryForObject("select count(*) from pw_order_member where order_id=? and member_status='ACCEPTED'",Long.class,orderId)).isEqualTo(2);
+    assertThat(db.queryForObject("select count(*) from pw_order_member where order_id=? and member_status='IN_SERVICE'",Long.class,orderId)).isZero();
     mvc.perform(put("/api/business/order/{id}/status",orderId).header("Authorization",admin).contentType(MediaType.APPLICATION_JSON).content("{\"status\":\"COMPLETED\"}"))
       .andExpect(status().isOk());
     assertThat(db.queryForObject("select count(*) from pw_order_settlement where order_id=?",Long.class,orderId)).isEqualTo(1);
@@ -333,6 +332,55 @@ class RbacFlowTest {
     var platform=db.queryForObject("select platform_amount from pw_order_settlement where order_id=?",java.math.BigDecimal.class,orderId);
     var players=db.queryForObject("select sum(player_amount) from pw_player_earning where order_id=?",java.math.BigDecimal.class,orderId);
     assertThat(platform.add(players)).isEqualByComparingTo(paid);
+  }
+
+  @Test void playerOrderDetailRemainsReadableForHistoricalMember() throws Exception {
+    String admin=login("admin","Test-Only-Password-9x!");
+    long customerId=db.queryForObject("select id from sys_user where username='admin'",Long.class);
+    var customerPlayers=db.queryForList("select id from pw_player where user_id=? order by id",Long.class,customerId);
+    long playerId=customerPlayers.isEmpty()?db.queryForObject("select id from pw_player where player_no='DEMO-PW-005'",Long.class):customerPlayers.get(0);
+    if(customerPlayers.isEmpty())db.update("update pw_player set user_id=?,enabled=true,audit_status='APPROVED' where id=?",customerId,playerId);
+    long skuId=legacySku("delta-escort-1game");
+    long orderId=json.readTree(mvc.perform(post("/api/business/order").header("Authorization",admin).contentType(MediaType.APPLICATION_JSON)
+      .content("{\"customerId\":"+customerId+",\"skuId\":"+skuId+",\"quantity\":1,\"gameAccount\":\"historical-member-test\"}"))
+      .andExpect(status().isOk()).andReturn().getResponse().getContentAsString()).at("/data/id").asLong();
+    db.update("insert into pw_order_member(order_id,player_id,member_status,join_source,joined_at) values(?,?,'ACCEPTED','ADMIN',current_timestamp)",orderId,playerId);
+    db.update("update pw_service_order set service_status='IN_SERVICE' where order_id=?",orderId);
+
+    mvc.perform(put("/api/player/orders/{id}/submit",orderId).header("Authorization",admin).contentType(MediaType.APPLICATION_JSON)
+      .content("{\"completionNote\":\"不应绕过开始步骤\",\"actualQuantity\":1,\"proofUrls\":[\"/uploads/test-proof.png\"]}"))
+      .andExpect(status().isBadRequest())
+      .andExpect(jsonPath("$.msg").value("请先开始服务，再提交完成凭证"));
+
+    db.update("update pw_order_member set member_status='TRANSFERRED' where order_id=? and player_id=?",orderId,playerId);
+
+    mvc.perform(get("/api/player/orders/{id}",orderId).header("Authorization",admin))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.data.memberStatus").value("TRANSFERRED"));
+  }
+
+  @Test void onePlayerStartingDoesNotStartOtherMembers() throws Exception {
+    String admin=login("admin","Test-Only-Password-9x!");
+    long customerId=db.queryForObject("select id from sys_user where username='admin'",Long.class);
+    long currentPlayerId=db.queryForObject("select id from pw_player where user_id=?",Long.class,customerId);
+    long teammateId=db.queryForObject("select id from pw_player where id<>? order by id limit 1",Long.class,currentPlayerId);
+    long skuId=legacySku("delta-escort-1game");
+    long orderId=json.readTree(mvc.perform(post("/api/business/order").header("Authorization",admin).contentType(MediaType.APPLICATION_JSON)
+      .content("{\"customerId\":"+customerId+",\"skuId\":"+skuId+",\"quantity\":1,\"gameAccount\":\"member-start-test\"}"))
+      .andExpect(status().isOk()).andReturn().getResponse().getContentAsString()).at("/data/id").asLong();
+    db.update("update pw_service_order set service_status='ASSIGNED',required_player_count=2,assigned_at=current_timestamp where order_id=?",orderId);
+    db.update("insert into pw_order_member(order_id,player_id,member_status,join_source,joined_at) values(?,?,'ACCEPTED','ADMIN',current_timestamp)",orderId,currentPlayerId);
+    db.update("insert into pw_order_member(order_id,player_id,member_status,join_source,joined_at) values(?,?,'ACCEPTED','ADMIN',current_timestamp)",orderId,teammateId);
+
+    mvc.perform(put("/api/player/orders/{id}/start",orderId).header("Authorization",admin))
+      .andExpect(status().isOk());
+
+    assertThat(db.queryForObject("select service_status from pw_service_order where order_id=?",String.class,orderId)).isEqualTo("IN_SERVICE");
+    assertThat(db.queryForObject("select member_status from pw_order_member where order_id=? and player_id=?",String.class,orderId,currentPlayerId)).isEqualTo("IN_SERVICE");
+    assertThat(db.queryForObject("select member_status from pw_order_member where order_id=? and player_id=?",String.class,orderId,teammateId)).isEqualTo("ACCEPTED");
+    mvc.perform(get("/api/player/orders/{id}",orderId).header("Authorization",admin))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.data.memberStatus").value("IN_SERVICE"));
   }
 
   @Test void walletRechargeIsIdempotentAndProducesImmutableLedger() throws Exception {
@@ -370,7 +418,7 @@ class RbacFlowTest {
   @Test void orderWalletPaymentIsIdempotentAndCancellationRefundsOriginalBalances() throws Exception {
     String admin=login("admin","Test-Only-Password-9x!");
     long uid=db.queryForObject("select id from sys_user where username='admin'",Long.class);
-    long skuId=db.queryForObject("select id from pw_product_sku where sku_code='delta-escort-1game'",Long.class);
+    long skuId=legacySku("delta-escort-1game");
     long orderId=json.readTree(mvc.perform(post("/api/business/order").header("Authorization",admin).contentType(MediaType.APPLICATION_JSON)
       .content("{\"customerId\":"+uid+",\"skuId\":"+skuId+",\"quantity\":1,\"gameAccount\":\"refund-test\"}"))
       .andExpect(status().isOk()).andReturn().getResponse().getContentAsString()).at("/data/id").asLong();
@@ -397,7 +445,7 @@ class RbacFlowTest {
   @Test void walletPaymentUsesCashBeforeBonusAndRefundsEachBalance() throws Exception {
     String admin=login("admin","Test-Only-Password-9x!");
     long uid=db.queryForObject("select id from sys_user where username='admin'",Long.class);
-    long skuId=db.queryForObject("select id from pw_product_sku where sku_code='delta-escort-1game'",Long.class);
+    long skuId=legacySku("delta-escort-1game");
     long orderId=json.readTree(mvc.perform(post("/api/business/order").header("Authorization",admin).contentType(MediaType.APPLICATION_JSON)
       .content("{\"customerId\":"+uid+",\"skuId\":"+skuId+",\"quantity\":1,\"gameAccount\":\"mixed-balance-test\"}"))
       .andExpect(status().isOk()).andReturn().getResponse().getContentAsString()).at("/data/id").asLong();
@@ -427,7 +475,7 @@ class RbacFlowTest {
   @Test void concurrentPaymentRequestsCreateOnlyOnePayment() throws Exception {
     String admin=login("admin","Test-Only-Password-9x!");
     long uid=db.queryForObject("select id from sys_user where username='admin'",Long.class);
-    long skuId=db.queryForObject("select id from pw_product_sku where sku_code='delta-escort-1game'",Long.class);
+    long skuId=legacySku("delta-escort-1game");
     long orderId=json.readTree(mvc.perform(post("/api/business/order").header("Authorization",admin).contentType(MediaType.APPLICATION_JSON)
       .content("{\"customerId\":"+uid+",\"skuId\":"+skuId+",\"quantity\":1,\"gameAccount\":\"concurrent-payment-test\"}"))
       .andExpect(status().isOk()).andReturn().getResponse().getContentAsString()).at("/data/id").asLong();
@@ -455,7 +503,7 @@ class RbacFlowTest {
   @Test void mockWechatPaymentDoesNotRequireOrDebitWallet() throws Exception {
     String admin=login("admin","Test-Only-Password-9x!");
     long uid=db.queryForObject("select id from sys_user where username='admin'",Long.class);
-    long skuId=db.queryForObject("select id from pw_product_sku where sku_code='delta-escort-1game'",Long.class);
+    long skuId=legacySku("delta-escort-1game");
     long orderId=json.readTree(mvc.perform(post("/api/business/order").header("Authorization",admin).contentType(MediaType.APPLICATION_JSON)
       .content("{\"customerId\":"+uid+",\"skuId\":"+skuId+",\"quantity\":1,\"gameAccount\":\"mock-wechat-test\"}"))
       .andExpect(status().isOk()).andReturn().getResponse().getContentAsString()).at("/data/id").asLong();
@@ -509,17 +557,48 @@ class RbacFlowTest {
         .andExpect(status().isOk()).andExpect(jsonPath("$.data.records").isArray()).andReturn().getResponse().getContentAsString();
       for(var order:json.readTree(body).at("/data/records")){
         String actual=order.path("orderStatus").asText();
-        if("ACTIVE_SERVICE".equals(filter))assertThat(actual).isIn("ASSIGNED","IN_SERVICE");
+        if("ACTIVE_SERVICE".equals(filter))assertThat(actual).isIn("ASSIGNED","IN_SERVICE","PAUSED");
         else if("PENDING_CONFIRMATION".equals(filter))assertThat(actual).isIn("PENDING_CONFIRM","WAIT_CUSTOMER_CONFIRM");
         else assertThat(actual).isEqualTo(filter);
       }
     }
   }
 
+  @Test void customerPauseAndResumeRequireAdminApproval() throws Exception {
+    String admin=login("admin","Test-Only-Password-9x!");
+    long customerId=db.queryForObject("select id from sys_user where username='admin'",Long.class);
+    long skuId=legacySku("delta-escort-1game");
+    long orderId=json.readTree(mvc.perform(post("/api/business/order").header("Authorization",admin).contentType(MediaType.APPLICATION_JSON)
+      .content("{\"customerId\":"+customerId+",\"skuId\":"+skuId+",\"quantity\":1,\"gameAccount\":\"pause-resume-test\"}"))
+      .andExpect(status().isOk()).andReturn().getResponse().getContentAsString()).at("/data/id").asLong();
+    fundAndPay(admin,orderId,"pause-resume-pay");
+    long playerId=db.queryForObject("select id from pw_player where player_no='DEMO-PW-001'",Long.class);
+    db.update("update pw_player set work_status='AVAILABLE',max_active_orders=10 where id=?",playerId);
+    mvc.perform(put("/api/business/order/{id}/assign",orderId).header("Authorization",admin).contentType(MediaType.APPLICATION_JSON).content("{\"playerId\":"+playerId+"}")) .andExpect(status().isOk());
+    mvc.perform(put("/api/business/order/{id}/status",orderId).header("Authorization",admin).contentType(MediaType.APPLICATION_JSON).content("{\"status\":\"IN_SERVICE\"}")) .andExpect(status().isOk());
+
+    long pauseId=json.readTree(mvc.perform(post("/api/customer/orders/{id}/service-exceptions",orderId).header("Authorization",admin).contentType(MediaType.APPLICATION_JSON)
+      .content("{\"requestType\":\"PAUSE\",\"reason\":\"长时间服务需要休息\"}"))
+      .andExpect(status().isOk()).andReturn().getResponse().getContentAsString()).at("/data/id").asLong();
+    assertThat(db.queryForObject("select service_status from pw_service_order where order_id=?",String.class,orderId)).isEqualTo("IN_SERVICE");
+    mvc.perform(put("/api/business/service-exceptions/{id}/review",pauseId).header("Authorization",admin).contentType(MediaType.APPLICATION_JSON).content("{\"action\":\"APPROVE\",\"remark\":\"同意暂停\"}")) .andExpect(status().isOk());
+    assertThat(db.queryForObject("select service_status from pw_service_order where order_id=?",String.class,orderId)).isEqualTo("PAUSED");
+    assertThat(db.queryForObject("select count(*) from pw_service_pause_record where order_id=? and pause_request_id=? and resumed_at is null",Long.class,orderId,pauseId)).isEqualTo(1);
+    assertThat(db.queryForObject("select trade_status from pw_trade_order where id=?",String.class,orderId)).isEqualTo("PROCESSING");
+
+    long resumeId=json.readTree(mvc.perform(post("/api/customer/orders/{id}/service-exceptions",orderId).header("Authorization",admin).contentType(MediaType.APPLICATION_JSON)
+      .content("{\"requestType\":\"RESUME\",\"reason\":\"可以继续服务\"}"))
+      .andExpect(status().isOk()).andReturn().getResponse().getContentAsString()).at("/data/id").asLong();
+    mvc.perform(put("/api/business/service-exceptions/{id}/review",resumeId).header("Authorization",admin).contentType(MediaType.APPLICATION_JSON).content("{\"action\":\"APPROVE\",\"remark\":\"同意继续\"}")) .andExpect(status().isOk());
+    assertThat(db.queryForObject("select service_status from pw_service_order where order_id=?",String.class,orderId)).isEqualTo("IN_SERVICE");
+    assertThat(db.queryForObject("select count(*) from pw_service_pause_record where order_id=? and resume_request_id=? and resumed_at is not null",Long.class,orderId,resumeId)).isEqualTo(1);
+    assertThat(db.queryForObject("select count(*) from pw_order_member where order_id=? and member_status in('ACCEPTED','IN_SERVICE')",Long.class,orderId)).isEqualTo(1);
+  }
+
   @Test void auditedSingleMemberTransferKeepsOtherMembersAndBuildsImmutableChain() throws Exception {
     String admin=login("admin","Test-Only-Password-9x!");
     long customerId=db.queryForObject("select id from sys_user where username='admin'",Long.class);
-    long skuId=db.queryForObject("select id from pw_product_sku where sku_code='delta-escort-1game'",Long.class);
+    long skuId=legacySku("delta-escort-1game");
     long orderId=json.readTree(mvc.perform(post("/api/business/order").header("Authorization",admin).contentType(MediaType.APPLICATION_JSON)
       .content("{\"customerId\":"+customerId+",\"skuId\":"+skuId+",\"quantity\":1,\"gameAccount\":\"transfer-member-test\"}"))
       .andExpect(status().isOk()).andReturn().getResponse().getContentAsString()).at("/data/id").asLong();
@@ -536,6 +615,7 @@ class RbacFlowTest {
     mvc.perform(put("/api/business/order/{id}/assign",orderId).header("Authorization",admin).contentType(MediaType.APPLICATION_JSON).content("{\"playerId\":"+first+"}")).andExpect(status().isOk());
     mvc.perform(put("/api/business/order/{id}/assign",orderId).header("Authorization",admin).contentType(MediaType.APPLICATION_JSON).content("{\"playerId\":"+second+"}")).andExpect(status().isOk());
     mvc.perform(put("/api/business/order/{id}/status",orderId).header("Authorization",admin).contentType(MediaType.APPLICATION_JSON).content("{\"status\":\"IN_SERVICE\"}")).andExpect(status().isOk());
+    db.update("update pw_order_member set member_status='IN_SERVICE',service_started_at=current_timestamp where order_id=? and player_id in(?,?)",orderId,first,second);
     long sourceMember=db.queryForObject("select id from pw_order_member where order_id=? and player_id=?",Long.class,orderId,first);
     long requestId=json.readTree(mvc.perform(post("/api/customer/orders/{id}/service-exceptions",orderId).header("Authorization",admin).contentType(MediaType.APPLICATION_JSON)
       .content("{\"requestType\":\"TRANSFER\",\"sourceOrderMemberId\":"+sourceMember+",\"targetPlayerId\":"+target+",\"reason\":\"成员临时无法继续\"}"))
@@ -564,7 +644,7 @@ class RbacFlowTest {
   @Test void approvedAbortEndsServiceAndRefundsPaidOrder() throws Exception {
     String admin=login("admin","Test-Only-Password-9x!");
     long customerId=db.queryForObject("select id from sys_user where username='admin'",Long.class);
-    long skuId=db.queryForObject("select id from pw_product_sku where sku_code='delta-escort-1game'",Long.class);
+    long skuId=legacySku("delta-escort-1game");
     long orderId=json.readTree(mvc.perform(post("/api/business/order").header("Authorization",admin).contentType(MediaType.APPLICATION_JSON)
       .content("{\"customerId\":"+customerId+",\"skuId\":"+skuId+",\"quantity\":1,\"gameAccount\":\"approved-abort-test\"}"))
       .andExpect(status().isOk()).andReturn().getResponse().getContentAsString()).at("/data/id").asLong();
@@ -600,6 +680,7 @@ class RbacFlowTest {
 
   private void fundAndPay(String token,long orderId,String prefix) throws Exception {recharge(token,prefix+"-fund-"+orderId);mvc.perform(post("/api/customer/orders/{id}/pay",orderId).header("Authorization",token).contentType(MediaType.APPLICATION_JSON).content("{\"requestNo\":\""+prefix+"-"+orderId+"\"}")) .andExpect(status().isOk());}
   private void recharge(String token,String requestNo) throws Exception {long planId=db.queryForObject("select id from pw_recharge_plan where plan_code='R1000'",Long.class);mvc.perform(post("/api/customer/wallet/recharge").header("Authorization",token).contentType(MediaType.APPLICATION_JSON).content("{\"planId\":"+planId+",\"requestNo\":\""+requestNo+"\"}")) .andExpect(status().isOk());}
+  private long legacySku(String skuCode){db.update("update pw_product set status='ON_SALE' where id=(select product_id from pw_product_sku where sku_code=?)",skuCode);return db.queryForObject("select id from pw_product_sku where sku_code=?",Long.class,skuCode);}
 
   private String login(String username,String password) throws Exception {
     var response=mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)

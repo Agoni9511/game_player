@@ -24,6 +24,20 @@
         </view>
       </view>
 
+      <view v-if="pendingControlRequest" class="card control-notice">
+        <view class="section-title">{{ pendingControlRequest.request_type === 'PAUSE' ? '暂停申请审核中' : '继续申请审核中' }}</view>
+        <view>{{ pendingControlRequest.reason }}</view>
+        <text>平台审核完成后会同步影响订单内全部服务成员。</text>
+      </view>
+
+      <view v-if="commitments.length" class="card commitment-card">
+        <view class="section-title">本单承诺</view>
+        <view v-for="rule in commitments" :key="String(rule.id)" class="commitment-row">
+          <view><strong>{{ rule.title }}</strong><text v-if="rule.description">{{ rule.description }}</text><text v-if="rule.failureAction">未达标处理：{{ rule.failureAction }}</text></view>
+          <label v-if="targetText(rule)">{{ targetText(rule) }}</label>
+        </view>
+      </view>
+
       <view class="card">
         <view class="section-title">游戏资料</view>
         <InfoRow label="游戏" :value="text(game.game_name)" />
@@ -77,7 +91,9 @@
       <view class="action-space" />
       <view v-if="showActions" class="action-bar">
         <button v-if="canCancel" class="secondary" @click="cancelOrder">取消订单</button>
-        <button v-if="detail.orderStatus === 'IN_SERVICE'" class="secondary" @click="serviceException">转单/炸单</button>
+        <button v-if="detail.orderStatus === 'IN_SERVICE' && !pendingControlRequest" class="secondary" @click="serviceException">转单/炸单</button>
+        <button v-if="detail.orderStatus === 'IN_SERVICE' && !pendingControlRequest" class="secondary" @click="requestControl('PAUSE')">申请暂停</button>
+        <button v-if="detail.orderStatus === 'PAUSED' && !pendingControlRequest" class="primary action-primary" @click="requestControl('RESUME')">申请继续</button>
         <button v-if="canAfterSale" class="secondary" @click="afterSale">申请售后</button>
         <button v-if="detail.orderStatus === 'WAIT_CUSTOMER_CONFIRM'" class="primary action-primary" @click="confirm">确认服务完成</button>
         <button v-if="detail.orderStatus === 'PENDING_PAYMENT'" class="primary action-primary" :disabled="paying" @click="pay">{{ paying ? '支付处理中...' : `${paymentMethod === 'MOCK_WECHAT' ? '模拟支付' : '钱包支付'} ¥${money(detail.payableAmount)}` }}</button>
@@ -92,7 +108,7 @@
 import { computed, ref } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import InfoRow from '@/components/InfoRow.vue'
-import { cancelCustomerOrder, confirmOrder, getCustomerOrder, getCustomerOrderPayment, getCustomerWallet, mockWechatPayCustomerOrder, payCustomerOrder } from '@/api/customer'
+import { cancelCustomerOrder, confirmOrder, createCustomerServiceException, getCustomerOrder, getCustomerOrderPayment, getCustomerWallet, mockWechatPayCustomerOrder, payCustomerOrder } from '@/api/customer'
 import { requireLogin } from '@/utils/auth-guard'
 import type { RecordData } from '@/types/api'
 
@@ -108,6 +124,7 @@ const statusMap: Record<string, { label: string; desc: string }> = {
   WAIT_ASSIGN: { label: '等待接单', desc: '平台正在为你匹配合适的陪玩师' },
   ASSIGNED: { label: '已派单', desc: '陪玩师已接单，请留意服务开始时间' },
   IN_SERVICE: { label: '服务中', desc: '陪玩师正在为你服务' },
+  PAUSED: { label: '服务已暂停', desc: '订单成员已暂停服务，可提交继续申请' },
   PENDING_CONFIRM: { label: '待审核', desc: '陪玩师已提交完成，平台正在审核' },
   WAIT_CUSTOMER_CONFIRM: { label: '待你确认', desc: '服务已通过审核，请确认服务结果' },
   COMPLETED: { label: '已完成', desc: '本次服务已圆满完成' },
@@ -117,10 +134,12 @@ const statusMap: Record<string, { label: string; desc: string }> = {
 const firstItem = computed<RecordData>(() => (detail.value.items as RecordData[] | undefined)?.[0] || {})
 const game = computed<RecordData>(() => (detail.value.gameProfile as RecordData | undefined) || {})
 const members = computed<RecordData[]>(() => (detail.value.members as RecordData[] | undefined) || [])
+const commitments = computed<RecordData[]>(() => (detail.value.commitments as RecordData[] | undefined) || [])
+const pendingControlRequest = computed<RecordData | undefined>(() => ((detail.value.serviceExceptions as RecordData[] | undefined) || []).find(item => ['PAUSE', 'RESUME'].includes(String(item.request_type)) && item.request_status === 'PENDING'))
 const statusInfo = computed(() => statusMap[String(detail.value.orderStatus)] || { label: '订单进行中', desc: '服务状态正在更新' })
 const canCancel = computed(() => ['PENDING_PAYMENT', 'WAIT_ASSIGN'].includes(String(detail.value.orderStatus)))
 const canAfterSale = computed(() => ['PENDING_CONFIRM', 'WAIT_CUSTOMER_CONFIRM'].includes(String(detail.value.orderStatus)))
-const showActions = computed(() => canCancel.value || canAfterSale.value || ['PENDING_PAYMENT', 'IN_SERVICE', 'WAIT_CUSTOMER_CONFIRM'].includes(String(detail.value.orderStatus)))
+const showActions = computed(() => canCancel.value || canAfterSale.value || ['PENDING_PAYMENT', 'IN_SERVICE', 'PAUSED', 'WAIT_CUSTOMER_CONFIRM'].includes(String(detail.value.orderStatus)))
 const walletAccount = computed<RecordData>(() => (wallet.value.account as RecordData | undefined) || {})
 const walletBalance = computed(() => Number(walletAccount.value.totalBalance || 0))
 const payableAmount = computed(() => Number(detail.value.payableAmount || 0))
@@ -196,8 +215,19 @@ async function pay() {
 }
 function afterSale() { uni.navigateTo({ url: `/subpackages/customer/after-sale?id=${id.value}` }) }
 function serviceException() { uni.navigateTo({ url: `/subpackages/customer/service-exception?id=${id.value}` }) }
+async function requestControl(requestType: 'PAUSE' | 'RESUME') {
+  const pause = requestType === 'PAUSE'
+  const result = await uni.showModal({ title: pause ? '申请暂停服务' : '申请继续服务', content: '', editable: true, placeholderText: pause ? '请填写暂停原因' : '请填写继续原因', confirmText: '提交审核' })
+  if (!result.confirm) return
+  const reason = String(result.content || '').trim()
+  if (!reason) return uni.showToast({ title: '请填写申请原因', icon: 'none' })
+  await createCustomerServiceException(id.value, { requestType, reason })
+  uni.showToast({ title: '已提交审核', icon: 'success' })
+  await load()
+}
 function text(value: unknown) { return value === null || value === undefined || value === '' ? '-' : String(value) }
 function money(value: unknown) { const n = Number(value || 0); return Number.isFinite(n) ? n.toFixed(2) : '0.00' }
+function targetText(rule: RecordData) { return rule.targetValue === null || rule.targetValue === undefined || rule.targetValue === '' ? '' : `${rule.targetValue}${rule.targetUnit || ''}` }
 function formatTime(value: unknown) { return value ? String(value).replace('T', ' ').slice(0, 19) : '-' }
 </script>
 
@@ -205,4 +235,6 @@ function formatTime(value: unknown) { return value ? String(value).replace('T', 
 .order-page{padding-bottom:calc(180rpx + env(safe-area-inset-bottom))}.loading,.empty{text-align:center;color:#68766e;padding:90rpx 20rpx}.status-card{display:flex;align-items:center;gap:24rpx;margin:6rpx 0 30rpx;padding:30rpx;background:linear-gradient(135deg,#244d43,#426d60);color:#fffaf0;border-radius:12rpx 34rpx 12rpx 34rpx;box-shadow:0 14rpx 30rpx rgba(36,77,67,.18)}.seal{display:flex;align-items:center;justify-content:center;width:78rpx;height:78rpx;border:4rpx double rgba(255,248,225,.78);font-family:STKaiti,KaiTi,serif;font-size:38rpx;border-radius:8rpx;transform:rotate(-4deg)}.status-title{font-family:STKaiti,KaiTi,serif;font-size:40rpx;font-weight:800;letter-spacing:3rpx}.status-desc{margin-top:8rpx;color:rgba(255,250,240,.75);font-size:24rpx}.section-title{margin-bottom:22rpx;font-family:STKaiti,KaiTi,serif;font-size:34rpx;font-weight:800}.product-name{font-size:32rpx;font-weight:700}.spec-line,.amount-line{display:flex;justify-content:space-between;margin-top:18rpx;color:#68766e}.amount-line{align-items:flex-end;padding-top:22rpx;border-top:1rpx solid rgba(54,79,68,.12)}.amount{color:#9a432f;font-size:40rpx;font-weight:800}.safe-tip{text-align:center;color:#8a928d;font-size:24rpx}.action-space{height:30rpx}.action-bar{position:fixed;z-index:20;left:0;right:0;bottom:0;display:flex;gap:18rpx;padding:18rpx 28rpx calc(18rpx + env(safe-area-inset-bottom));background:rgba(255,253,244,.96);box-shadow:0 -8rpx 24rpx rgba(31,48,39,.08)}.action-bar button{flex:1;margin:0;font-size:28rpx}.secondary{color:#315c50;background:#f8f5e9;border:1rpx solid rgba(49,92,80,.3);border-radius:8rpx 18rpx 8rpx 18rpx}.action-primary{flex:1.5!important}
 .payment-card{border-color:rgba(49,92,80,.24);background:linear-gradient(135deg,#fffdf4,#e8eee4)}.section-head{display:flex;align-items:flex-start;justify-content:space-between}.section-head>text{padding:6rpx 12rpx;border-radius:15rpx;color:#315c50;background:#dbe7df;font-size:18rpx}.wallet-line{display:flex;align-items:baseline;justify-content:space-between}.wallet-line text{color:#64736b}.wallet-line strong{color:#315c50;font-size:34rpx}.payment-split{margin-top:20rpx;padding-top:18rpx;border-top:1rpx solid rgba(49,92,80,.13)}.payment-split>view{display:flex;justify-content:space-between;margin-top:12rpx;color:#7a857e;font-size:22rpx}.payment-split label{color:#44594e}.balance-warning{margin-top:20rpx;padding:14rpx;border-radius:12rpx;color:#963d31;background:#f5e1d9;font-size:21rpx;text-align:center}.paid-card{background:linear-gradient(135deg,#fffdf4,#e1ebe3)}button[disabled]{opacity:.65}
 .payment-methods{margin-bottom:24rpx}.payment-methods>view{min-height:92rpx;margin-top:14rpx;padding:15rpx 17rpx;border:2rpx solid rgba(49,92,80,.13);border-radius:9rpx 22rpx 9rpx 22rpx;display:flex;align-items:center;background:rgba(255,253,246,.75)}.payment-methods>view.active{border-color:#315c50;background:#e0e9df;box-shadow:inset 5rpx 0 #315c50}.method-icon{width:58rpx;height:58rpx;flex:none;margin-right:15rpx;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-family:STKaiti,KaiTi,serif;font-weight:800}.method-icon.balance{background:#315c50}.method-icon.wechat{background:#16a66a}.payment-methods>view>view:nth-child(2){min-width:0;flex:1}.payment-methods strong,.payment-methods text{display:block}.payment-methods text{margin-top:5rpx;color:#7a857e;font-size:18rpx}.payment-methods>view>label{width:40rpx;height:40rpx;border:2rpx solid #b9c3bc;border-radius:50%;color:#fff;background:#fff;line-height:37rpx;text-align:center}.payment-methods>view.active>label{border-color:#315c50;background:#315c50}.mock-notice{padding:18rpx;border:1rpx solid rgba(22,166,106,.22);border-radius:12rpx 22rpx 12rpx 22rpx;display:flex;align-items:flex-start;background:#e5f2e9}.mock-notice>text{flex:none;margin-right:14rpx;padding:5rpx 9rpx;border-radius:12rpx;color:#fff;background:#16a66a;font-size:17rpx}.mock-notice strong,.mock-notice label{display:block}.mock-notice label{margin-top:7rpx;color:#68786f;font-size:19rpx;line-height:1.55}
+.commitment-card{border-color:rgba(150,61,49,.2);background:linear-gradient(135deg,#fffdf4,#f4e8dc)}.commitment-row{display:flex;align-items:flex-start;justify-content:space-between;gap:20rpx;padding:17rpx 0;border-bottom:1rpx solid rgba(150,61,49,.1)}.commitment-row:last-child{border-bottom:0}.commitment-row>view{min-width:0;flex:1}.commitment-row strong,.commitment-row text{display:block}.commitment-row strong{color:#3d2c25;font-size:25rpx}.commitment-row text{margin-top:7rpx;color:#776b63;font-size:20rpx;line-height:1.5}.commitment-row label{flex:none;color:#963d31;font-size:28rpx;font-weight:800}
+.control-notice{border-color:rgba(173,123,52,.28);background:#f4ead7}.control-notice text{display:block;margin-top:12rpx;color:#8a6a3f;font-size:22rpx}
 </style>

@@ -15,5 +15,5 @@ public interface OrderDataMapper{
  @Select("select s.service_code,s.service_name,ps.service_quantity quantity,ps.unit_type from pw_product_service ps join pw_service_item s on s.id=ps.service_id where ps.product_id=#{id} order by ps.sort_no") List<Map<String,Object>> serviceSnapshot(long id);
  @Select("select i.sku_id,i.quantity,k.stock_mode from pw_order_item i join pw_product_sku k on k.id=i.sku_id where i.order_id=#{id}") List<Map<String,Object>> stockRows(long id);
  @Update("update pw_product_sku set stock_quantity=stock_quantity+#{quantity} where id=#{skuId}") int restoreStock(long skuId,int quantity);
- @Select("select count(*) from pw_order_member m join pw_service_order s on s.order_id=m.order_id where m.player_id=#{id} and m.member_status in('ACCEPTED','IN_SERVICE') and s.service_status in('WAIT_ASSIGN','ASSIGNED','IN_SERVICE','PENDING_CONFIRM','WAIT_CUSTOMER_CONFIRM','AFTER_SALE')") long activePlayerOrders(long id);
+@Select("select count(*) from pw_order_member m join pw_service_order s on s.order_id=m.order_id where m.player_id=#{id} and m.member_status in('ACCEPTED','IN_SERVICE') and s.service_status in('WAIT_ASSIGN','ASSIGNED','IN_SERVICE','PAUSED','PENDING_CONFIRM','WAIT_CUSTOMER_CONFIRM','AFTER_SALE')") long activePlayerOrders(long id);
 }

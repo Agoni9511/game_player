@@ -14,7 +14,7 @@ export const getCustomerOrderPayment = (id: number) => request<RecordData>({ url
 export const confirmOrder = (id: number) => request<void>({ url: `/api/customer/orders/${id}/confirm`, method: 'PUT' })
 export const cancelCustomerOrder = (id: number, reason = '用户主动取消') => request<void>({ url: `/api/customer/orders/${id}/cancel`, method: 'PUT', data: { reason } })
 export const createAfterSale = (id: number, data: { reasonType: string; description: string; proofUrls: string[] }) => request<{ id: number }>({ url: `/api/customer/orders/${id}/after-sale`, method: 'POST', data })
-export const createCustomerServiceException = (id: number, data: { requestType: 'TRANSFER' | 'ABORT'; sourceOrderMemberId: number; targetPlayerId?: number; reason: string; proofUrls?: string[] }) => request<{ id: number }>({ url: `/api/customer/orders/${id}/service-exceptions`, method: 'POST', data })
+export const createCustomerServiceException = (id: number, data: { requestType: 'TRANSFER' | 'ABORT' | 'PAUSE' | 'RESUME'; sourceOrderMemberId?: number; targetPlayerId?: number; reason: string; proofUrls?: string[] }) => request<{ id: number }>({ url: `/api/customer/orders/${id}/service-exceptions`, method: 'POST', data })
 export const getTransferTargets = (id: number, sourceOrderMemberId?: number) => request<RecordData[]>({ url: `/api/service-orders/${id}/transfer-targets`, method: 'GET', data: { sourceOrderMemberId } })
 export const getCatalogGames = () => request<RecordData[]>({ url: '/api/customer/catalog/games', method: 'GET' })
 export const getCatalogCategories = () => request<RecordData[]>({ url: '/api/customer/catalog/categories', method: 'GET' })
@@ -27,6 +27,8 @@ export const getCustomerGameProfiles = (gameId?: number) => request<RecordData[]
 export const createCustomerGameProfile = (data: RecordData) => request<{ id: number }>({ url: '/api/customer/game-profiles', method: 'POST', data })
 export const getCatalogPlayers = (data: { keyword?: string; workStatus?: string; gameId?: number; playerLevelId?: number; skuId?: number; tagId?: number; gender?: string; sort?: 'DEFAULT' | 'RATING' | 'ORDERS' | 'PRICE_ASC' | 'PRICE_DESC'; current?: number; size?: number } = {}) => request<PageResult<RecordData>>({ url: '/api/customer/catalog/players', method: 'GET', data: { current: 1, size: 50, ...data } })
 export const getCatalogPlayer = (id: number) => request<RecordData>({ url: `/api/customer/catalog/players/${id}`, method: 'GET' })
+export const getPlayerApplication = () => request<RecordData>({ url: '/api/customer/player-application', method: 'GET' })
+export const createPlayerApplication = (data: { realName: string; phone: string; address: string }) => request<{ id: number }>({ url: '/api/customer/player-application', method: 'POST', data })
 export interface CreateCustomerOrder {
   skuId: number
   quantity: number

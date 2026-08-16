@@ -235,13 +235,13 @@ const profileTags = computed(() => {
 const customerOrderEntries = computed(() => [
   { label: '待付款', status: 'PENDING_PAYMENT', icon: '/static/icons/wallet.png', background: '#e3e7d8', count: Number(orderSummary.value.PENDING_PAYMENT || 0) },
   { label: '待接单', status: 'WAIT_ASSIGN', icon: '/static/icons/hourglass.png', background: '#eee2c8', count: Number(orderSummary.value.WAIT_ASSIGN || 0) },
-  { label: '服务中', status: 'ACTIVE_SERVICE', icon: '/static/icons/gamepad.png', background: '#dce8dd', count: Number(orderSummary.value.ASSIGNED || 0) + Number(orderSummary.value.IN_SERVICE || 0) },
+  { label: '服务中', status: 'ACTIVE_SERVICE', icon: '/static/icons/gamepad.png', background: '#dce8dd', count: Number(orderSummary.value.ASSIGNED || 0) + Number(orderSummary.value.IN_SERVICE || 0) + Number(orderSummary.value.PAUSED || 0) },
   { label: '待确认', status: 'PENDING_CONFIRMATION', icon: '/static/icons/check.png', background: '#efe0d7', count: Number(orderSummary.value.PENDING_CONFIRM || 0) + Number(orderSummary.value.WAIT_CUSTOMER_CONFIRM || 0) },
   { label: '售后', status: 'AFTER_SALE', icon: '/static/icons/after-sale.png', background: '#dde4db', count: Number(orderSummary.value.AFTER_SALE || 0) },
 ])
 const playerOrderEntries = computed(() => [
   { label: '待开始', status: 'ASSIGNED', icon: '/static/icons/hourglass.png', background: '#eee2c8', count: Number(playerOrderUnreadSummary.value.ASSIGNED || 0) },
-  { label: '服务中', status: 'IN_SERVICE', icon: '/static/icons/gamepad.png', background: '#dce8dd', count: Number(playerOrderUnreadSummary.value.IN_SERVICE || 0) },
+  { label: '服务中', status: 'IN_SERVICE', icon: '/static/icons/gamepad.png', background: '#dce8dd', count: Number(playerOrderUnreadSummary.value.IN_SERVICE || 0) + Number(playerOrderUnreadSummary.value.PAUSED || 0) },
   { label: '待审核', status: 'REVIEW', icon: '/static/icons/check.png', background: '#efe0d7', count: Number(playerOrderUnreadSummary.value.REVIEW || 0) },
   { label: '已完成', status: 'COMPLETED', icon: '/static/icons/orders-active.png', background: '#dfe6da', count: Number(playerOrderUnreadSummary.value.COMPLETED || 0) },
 ])
@@ -291,7 +291,7 @@ function assetAction(label: string) {
   if (label === '钱包余额' || label === '累计充值') return goRecharge()
   planned(label)
 }
-function identityAction() { planned('陪玩师入驻') }
+function identityAction() { navigateToWithLogin('/subpackages/customer/player-application', '登录后才能提交入驻申请') }
 function serviceAction(key: string, label: string) {
   if (key === 'customer-service') return planned('在线客服')
   if (!requireLogin(`登录后才能查看${label}`)) return

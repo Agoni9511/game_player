@@ -7,6 +7,7 @@ export const customerOrderStatusLabels: Record<string, string> = {
   WAIT_ASSIGN: '待接单',
   ASSIGNED: '已派单',
   IN_SERVICE: '服务中',
+  PAUSED: '已暂停',
   PENDING_CONFIRM: '待平台审核',
   WAIT_CUSTOMER_CONFIRM: '待顾客确认',
   COMPLETED: '已完成',
@@ -24,7 +25,7 @@ export function customerOrderStatusTone(status: unknown) {
   const key = String(status || '')
   if (['COMPLETED'].includes(key)) return 'success'
   if (['CANCELLED', 'CLOSED'].includes(key)) return 'muted-status'
-  if (['PENDING_PAYMENT', 'PENDING_CONFIRM', 'WAIT_CUSTOMER_CONFIRM'].includes(key)) return 'warning'
+  if (['PENDING_PAYMENT', 'PENDING_CONFIRM', 'WAIT_CUSTOMER_CONFIRM', 'PAUSED'].includes(key)) return 'warning'
   if (key === 'AFTER_SALE') return 'danger'
   return 'active'
 }
@@ -41,6 +42,7 @@ function playerOrderSeenStorageKey(userId: number) {
 
 function playerOrderCategory(order: RecordData): PlayerOrderCategory | undefined {
   const status = String(order.orderStatus || order.order_status || '')
+  if (status === 'PAUSED') return 'IN_SERVICE'
   if (status === 'PENDING_CONFIRM' || status === 'WAIT_CUSTOMER_CONFIRM') return 'REVIEW'
   return playerOrderCategories.includes(status as PlayerOrderCategory) ? status as PlayerOrderCategory : undefined
 }
