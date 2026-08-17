@@ -9,7 +9,7 @@
         >
       </ElForm>
     </ElCard>
-    <ElCard class="art-table-card">
+    <ElCard class="art-table-card player-tag-table-card">
       <ArtTableHeader :loading="loading" @refresh="load"
         ><template #left
           ><ElButton v-auth="'business:player-tag:create'" @click="open()"
@@ -17,29 +17,31 @@
           ></template
         ></ArtTableHeader
       >
-      <ElTable v-loading="loading" :data="rows">
-        <ElTableColumn prop="tagCode" label="标签编码" />
-        <ElTableColumn label="标签名称"
-          ><template #default="{ row }"
-            ><ElTag effect="plain" :style="tagStyle(row.tagColor)">{{
-              row.tagName
-            }}</ElTag></template
-          ></ElTableColumn
-        >
-        <ElTableColumn prop="tagGroup" label="分组" />
-        <ElTableColumn prop="sortNo" label="排序" width="80" />
-        <ElTableColumn label="状态" width="90"
-          ><template #default="{ row }"
-            ><ElTag :type="row.enabled ? 'success' : 'info'">{{
-              row.enabled ? '启用' : '禁用'
-            }}</ElTag></template
-          ></ElTableColumn
-        >
-        <ElTableColumn label="操作" width="80"
-          ><template #default="{ row }"
-            ><ArtButtonMore :list="actions" @click="(i) => action(i.key, row)" /></template
-        ></ElTableColumn>
-      </ElTable>
+      <div class="player-tag-table-scroll">
+        <ElTable v-loading="loading" :data="rows" height="100%">
+          <ElTableColumn prop="tagCode" label="标签编码" />
+          <ElTableColumn label="标签名称"
+            ><template #default="{ row }"
+              ><ElTag effect="plain" :style="tagStyle(row.tagColor)">{{
+                row.tagName
+              }}</ElTag></template
+            ></ElTableColumn
+          >
+          <ElTableColumn prop="tagGroup" label="分组" />
+          <ElTableColumn prop="sortNo" label="排序" width="80" />
+          <ElTableColumn label="状态" width="90"
+            ><template #default="{ row }"
+              ><ElTag :type="row.enabled ? 'success' : 'info'">{{
+                row.enabled ? '启用' : '禁用'
+              }}</ElTag></template
+            ></ElTableColumn
+          >
+          <ElTableColumn label="操作" width="80"
+            ><template #default="{ row }"
+              ><ArtButtonMore :list="actions" @click="(i) => action(i.key, row)" /></template
+          ></ElTableColumn>
+        </ElTable>
+      </div>
       <div class="flex justify-end mt-4"
         ><ElPagination
           v-model:current-page="query.current"
@@ -51,7 +53,15 @@
     </ElCard>
     <ElDialog v-model="visible" :title="editing.id ? '编辑标签' : '新增标签'" width="480px">
       <ElForm label-width="90px">
-        <ElFormItem label="标签编码" required><ElInput v-model="editing.tagCode"><template #append><ElButton @click="editing.tagCode = generateBusinessCode('tag')">重新生成</ElButton></template></ElInput></ElFormItem>
+        <ElFormItem label="标签编码" required
+          ><ElInput v-model="editing.tagCode"
+            ><template #append
+              ><ElButton @click="editing.tagCode = generateBusinessCode('tag')"
+                >重新生成</ElButton
+              ></template
+            ></ElInput
+          ></ElFormItem
+        >
         <ElFormItem label="标签名称" required><ElInput v-model="editing.tagName" /></ElFormItem>
         <ElFormItem label="标签分组"
           ><ElSelect v-model="editing.tagGroup" class="w-full"
@@ -142,7 +152,8 @@
   }
   async function save() {
     if (!editing.tagCode || !editing.tagName) return ElMessage.warning('请填写标签编码和名称')
-    editing.id ? await updateTag(editing.id, editing) : await createTag(editing)
+    if (editing.id) await updateTag(editing.id, editing)
+    else await createTag(editing)
     visible.value = false
     ElMessage.success('保存成功')
     load()
@@ -157,3 +168,16 @@
   }
   onMounted(load)
 </script>
+
+<style scoped>
+  .player-tag-table-card :deep(.el-card__body) {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .player-tag-table-scroll {
+    flex: 1;
+    min-height: 0;
+  }
+</style>

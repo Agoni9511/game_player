@@ -147,7 +147,11 @@ INSERT INTO `sys_menu` (`id`,`parent_id`,`type`,`name`,`path`,`component`,`title
   (227,225,'BUTTON','ServiceExceptionReview',NULL,NULL,'审核异常申请',NULL,'business:service-exception:review',2,0,1,0,'2026-08-13 00:14:33.407238','2026-08-13 00:14:33.407238'),
   (257,NULL,'DIRECTORY','FinanceCenter','/finance-center','/index/index','财务中心','ri:funds-box-line',NULL,24,0,1,1,'2026-08-15 03:19:24.485132','2026-08-15 03:19:24.485132'),
   (258,257,'MENU','FinanceLedger','finance-ledger','/business/finance-ledger','财务流水','ri:exchange-funds-line',NULL,1,0,1,1,'2026-08-15 03:19:24.495404','2026-08-15 03:19:24.495404'),
-  (259,258,'BUTTON','FinanceLedgerList',NULL,NULL,'查询财务流水',NULL,'business:finance:list',1,0,1,1,'2026-08-15 03:19:24.496499','2026-08-15 03:19:24.496499')
+  (259,258,'BUTTON','FinanceLedgerList',NULL,NULL,'查询财务流水',NULL,'business:finance:list',1,0,1,1,'2026-08-15 03:19:24.496499','2026-08-15 03:19:24.496499'),
+  (300,163,'MENU','CustomerServiceTicket','customer-service-ticket','/business/customer-service-ticket','客服工单','ri:customer-service-2-line',NULL,5,0,1,1,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP),
+  (301,300,'BUTTON','CustomerServiceTicketList',NULL,NULL,'查询客服工单',NULL,'business:customer-service:list',1,0,1,0,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP),
+  (302,300,'BUTTON','CustomerServiceTicketReply',NULL,NULL,'回复客服工单',NULL,'business:customer-service:reply',2,0,1,0,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP),
+  (303,300,'BUTTON','CustomerServiceTicketStatus',NULL,NULL,'更新工单状态',NULL,'business:customer-service:status',3,0,1,0,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)
 ON DUPLICATE KEY UPDATE `parent_id`=VALUES(`parent_id`),`type`=VALUES(`type`),`path`=VALUES(`path`),`component`=VALUES(`component`),`title`=VALUES(`title`),`icon`=VALUES(`icon`),`auth_mark`=VALUES(`auth_mark`),`sort_no`=VALUES(`sort_no`),`hidden`=VALUES(`hidden`),`enabled`=VALUES(`enabled`),`keep_alive`=VALUES(`keep_alive`),`updated_at`=VALUES(`updated_at`);
 
 INSERT IGNORE INTO `sys_role_menu` (`role_id`,`menu_id`) SELECT r.`id`,m.`id` FROM `sys_role` r JOIN `sys_menu` m ON m.`name`='Business' WHERE r.`code`='admin';
@@ -318,6 +322,7 @@ INSERT IGNORE INTO `sys_role_menu` (`role_id`,`menu_id`) SELECT r.`id`,m.`id` FR
 INSERT IGNORE INTO `sys_role_menu` (`role_id`,`menu_id`) SELECT r.`id`,m.`id` FROM `sys_role` r JOIN `sys_menu` m ON m.`name`='PlayerSettlement' WHERE r.`code`='player';
 INSERT IGNORE INTO `sys_role_menu` (`role_id`,`menu_id`) SELECT r.`id`,m.`id` FROM `sys_role` r JOIN `sys_menu` m ON m.`name`='PlayerSettlementView' WHERE r.`code`='player';
 INSERT IGNORE INTO `sys_role_menu` (`role_id`,`menu_id`) SELECT r.`id`,m.`id` FROM `sys_role` r JOIN `sys_menu` m ON m.`name`='PlayerSettlementWithdraw' WHERE r.`code`='player';
+INSERT IGNORE INTO `sys_role_menu` (`role_id`,`menu_id`) SELECT r.`id`,m.`id` FROM `sys_role` r JOIN `sys_menu` m ON m.`id` IN (300,301,302,303) WHERE r.`code`='admin';
 
 COMMIT;
 

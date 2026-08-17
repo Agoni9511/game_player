@@ -293,7 +293,10 @@ function assetAction(label: string) {
 }
 function identityAction() { navigateToWithLogin('/subpackages/customer/player-application', '登录后才能提交入驻申请') }
 function serviceAction(key: string, label: string) {
-  if (key === 'customer-service') return planned('在线客服')
+  if (key === 'customer-service') {
+    if (!requireLogin('登录后才能联系客服')) return
+    return uni.navigateTo({ url: '/subpackages/customer/service-tickets' })
+  }
   if (!requireLogin(`登录后才能查看${label}`)) return
   if (key === 'after-sale') return openOrder('AFTER_SALE')
   planned(label)

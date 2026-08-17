@@ -1123,6 +1123,40 @@ CREATE TABLE `pw_player_application` (
   KEY `ix_pw_player_application_status` (`application_status`, `created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- V52：平台客服工单与会话消息
+CREATE TABLE `pw_customer_service_ticket` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  `ticket_no` VARCHAR(40) NOT NULL,
+  `user_id` BIGINT NOT NULL,
+  `order_id` BIGINT,
+  `category` VARCHAR(32) NOT NULL,
+  `subject` VARCHAR(120) NOT NULL,
+  `ticket_status` VARCHAR(32) NOT NULL DEFAULT 'PENDING',
+  `priority` VARCHAR(16) NOT NULL DEFAULT 'NORMAL',
+  `assigned_admin_id` BIGINT,
+  `admin_unread_count` INT NOT NULL DEFAULT 0,
+  `customer_unread_count` INT NOT NULL DEFAULT 0,
+  `last_message_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `resolved_at` TIMESTAMP NULL,
+  `closed_at` TIMESTAMP NULL,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY `uk_customer_service_ticket_no` (`ticket_no`),
+  KEY `idx_customer_service_ticket_user` (`user_id`, `id`),
+  KEY `idx_customer_service_ticket_status` (`ticket_status`, `last_message_at`),
+  KEY `idx_customer_service_ticket_order` (`order_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `pw_customer_service_message` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  `ticket_id` BIGINT NOT NULL,
+  `sender_id` BIGINT NOT NULL,
+  `sender_role` VARCHAR(16) NOT NULL,
+  `content` TEXT NOT NULL,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY `idx_customer_service_message_ticket` (`ticket_id`, `id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- 后端启动依赖的内置角色；管理员密码由 ADMIN_INITIAL_PASSWORD 环境变量生成。
 INSERT INTO `sys_role` (`name`, `code`, `description`, `enabled`, `built_in`) VALUES
   ('超级管理员', 'admin', '平台超级管理员', 1, 1),

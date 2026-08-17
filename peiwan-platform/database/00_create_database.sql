@@ -19,4 +19,4 @@ USE `peiwan_platform`;
 
 -- 创建数据库后，请继续执行 database/01_full_schema.sql 创建全部业务表，
 -- 再执行 database/02_seed_menu_data.sql 初始化菜单、按钮权限和角色授权。
--- 该全量脚本用于空数据库首次初始化，不要与现有 H2 Flyway 脚本混用。
+-- 该全量脚本仅用于空数据库首次初始化；已有数据库不要重复执行。

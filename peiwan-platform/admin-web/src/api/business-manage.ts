@@ -122,4 +122,8 @@ export const fetchFinancePlatformLedger=(params:any)=>request.get<any>({url:'/ap
 export const fetchFinanceWalletTransactions=(params:any)=>request.get<any>({url:'/api/business/finance/wallet-transactions',params})
 export const fetchFinancePlayerTransactions=(params:any)=>request.get<any>({url:'/api/business/finance/player-transactions',params})
 export const fetchFinanceSettlements=(params:any)=>request.get<any>({url:'/api/business/finance/settlements',params})
+export const fetchCustomerServiceTickets=(params:any)=>request.get<any>({url:'/api/business/customer-service/tickets',params})
+export const fetchCustomerServiceTicket=(id:number)=>request.get<any>({url:`/api/business/customer-service/tickets/${id}`})
+export const replyCustomerServiceTicket=(id:number,content:string)=>request.post({url:`/api/business/customer-service/tickets/${id}/messages`,data:{content}})
+export const updateCustomerServiceTicketStatus=(id:number,status:string)=>request.put({url:`/api/business/customer-service/tickets/${id}/status`,data:{status}})
 export async function downloadSettlementReport(type:'earning'|'withdrawal') {const{useUserStore}=await import('@/store/modules/user');const base=(import.meta.env.VITE_API_URL||'').replace(/\/$/,'');const response=await fetch(`${base}/api/business/settlement/export?type=${type}`,{headers:{Authorization:useUserStore().accessToken}});if(!response.ok)throw new Error('报表导出失败');return response.blob()}

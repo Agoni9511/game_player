@@ -12,6 +12,8 @@ admin-web/src/types/import/auto-import.json
 admin-web/src/types/import/components.d.ts
 backend/data/
 backend/target/
+backend/config/application-private.yml
+backend/src/main/resources/application-private.yml
 miniapp/.vscode/
 miniapp/node_modules/
 miniapp/dist/

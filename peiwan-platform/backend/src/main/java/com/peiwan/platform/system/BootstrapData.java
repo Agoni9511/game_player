@@ -31,7 +31,7 @@ public class BootstrapData implements CommandLineRunner {
       SystemRelationMapper relations,
       PlayerMapper players,
       PasswordEncoder encoder,
-      @Value("${ADMIN_INITIAL_PASSWORD:123456}") String adminPassword) {
+      @Value("${app.admin.initial-password:${ADMIN_INITIAL_PASSWORD:123456}}") String adminPassword) {
     this.users = users;
     this.roles = roles;
     this.relations = relations;
@@ -59,7 +59,7 @@ public class BootstrapData implements CommandLineRunner {
 
     var role = roles.selectOne(new QueryWrapper<SystemRoleEntity>().eq("code", "admin"));
     if (role == null) {
-      throw new IllegalStateException("Flyway 未初始化 admin 角色");
+      throw new IllegalStateException("MySQL 未初始化 admin 角色");
     }
     if (relations.hasUserRole(admin.id, role.id) == 0) {
       relations.addUserRole(admin.id, role.id);
@@ -68,14 +68,14 @@ public class BootstrapData implements CommandLineRunner {
 
     var customerRole = roles.selectOne(new QueryWrapper<SystemRoleEntity>().eq("code", "customer"));
     if (customerRole == null) {
-      throw new IllegalStateException("Flyway 未初始化 customer 角色");
+      throw new IllegalStateException("MySQL 未初始化 customer 角色");
     }
     var customer = ensureAccount("customer", "用户端测试账号");
     grantRole(customer, customerRole);
 
     var playerRole = roles.selectOne(new QueryWrapper<SystemRoleEntity>().eq("code", "player"));
     if (playerRole == null) {
-      throw new IllegalStateException("Flyway 未初始化 player 角色");
+      throw new IllegalStateException("MySQL 未初始化 player 角色");
     }
     var playerUser = ensureAccount("player", "陪玩师测试账号");
     grantRole(playerUser, customerRole);

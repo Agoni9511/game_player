@@ -19,13 +19,51 @@
           ><ElButton v-auth="'business:game:create'" @click="open()">新增游戏</ElButton></template
         ></ArtTableHeader
       ><ElTable v-loading="loading" :data="rows"
-        ><ElTableColumn prop="gameCode" label="游戏编码" min-width="140" /><ElTableColumn
-          prop="gameName"
-          label="游戏名称"
-          min-width="140" /><ElTableColumn
-          prop="platformType"
-          label="平台"
-          width="100" /><ElTableColumn
+        ><ElTableColumn label="序号" width="76" align="center"
+          ><template #default="{ $index }"
+            ><span class="row-index">{{
+              (query.current - 1) * query.size + $index + 1
+            }}</span></template
+          ></ElTableColumn
+        ><ElTableColumn label="图标" width="88" align="center"
+          ><template #default="{ row }"
+            ><ElImage
+              v-if="row.iconUrl"
+              :src="row.iconUrl"
+              :preview-src-list="[row.iconUrl]"
+              preview-teleported
+              fit="cover"
+              class="game-icon"
+              ><template #error
+                ><div class="image-fallback"
+                  ><ArtSvgIcon icon="ri:gamepad-line" /></div></template></ElImage
+            ><div v-else class="game-icon image-fallback"
+              ><ArtSvgIcon icon="ri:gamepad-line" /></div></template></ElTableColumn
+        ><ElTableColumn prop="gameName" label="游戏名称" min-width="150" />
+        <ElTableColumn prop="gameCode" label="游戏编码" min-width="150" />
+        ><ElTableColumn label="游戏封面" width="168"
+          ><template #default="{ row }"
+            ><ElImage
+              v-if="row.coverUrl"
+              :src="row.coverUrl"
+              :preview-src-list="[row.coverUrl]"
+              preview-teleported
+              fit="cover"
+              class="game-cover"
+              ><template #error
+                ><div class="cover-fallback"
+                  ><ArtSvgIcon icon="ri:image-line" /></div></template></ElImage
+            ><div v-else class="game-cover cover-fallback"
+              ><ArtSvgIcon icon="ri:image-line" /></div></template></ElTableColumn
+        ><ElTableColumn label="平台" width="110"
+          ><template #default="{ row }"
+            ><ElTag effect="plain" round
+              ><ArtSvgIcon :icon="platformIcon(row.platformType)" class="mr-1" />{{
+                platformText(row.platformType)
+              }}</ElTag
+            ></template
+          ></ElTableColumn
+        ><ElTableColumn
           prop="description"
           label="说明"
           min-width="180"
@@ -49,7 +87,14 @@
           layout="total, sizes, prev, pager, next" /></div></ElCard
     ><ElDialog v-model="visible" :title="editing.id ? '编辑游戏' : '新增游戏'" width="520px"
       ><ElForm label-width="90px"
-        ><ElFormItem label="游戏编码" required><ElInput v-model="editing.gameCode"><template #append><ElButton @click="editing.gameCode = generateBusinessCode('game')">重新生成</ElButton></template></ElInput></ElFormItem
+        ><ElFormItem label="游戏编码" required
+          ><ElInput v-model="editing.gameCode"
+            ><template #append
+              ><ElButton @click="editing.gameCode = generateBusinessCode('game')"
+                >重新生成</ElButton
+              ></template
+            ></ElInput
+          ></ElFormItem
         ><ElFormItem label="游戏名称" required><ElInput v-model="editing.gameName" /></ElFormItem
         ><ElFormItem label="平台"
           ><ElSelect v-model="editing.platformType" class="w-full"
@@ -66,8 +111,10 @@
         ><ElButton @click="visible = false">取消</ElButton
         ><ElButton type="primary" @click="save">保存</ElButton></template
       ></ElDialog
-    ><PositionDialog v-model="positionVisible" :game="positionGame"
-  /><ConfigDialog v-model="configVisible" :game="configGame" /></div>
+    ><PositionDialog v-model="positionVisible" :game="positionGame" /><ConfigDialog
+      v-model="configVisible"
+      :game="configGame"
+  /></div>
 </template>
 <script setup lang="ts">
   import ArtButtonMore from '@/components/core/forms/art-button-more/index.vue'
@@ -99,7 +146,9 @@
     ...(has('business:game-position:list')
       ? [{ key: 'positions', label: '位置维护', icon: 'ri:map-pin-line' }]
       : []),
-    ...(has('business:game:update') ? [{ key: 'config', label: '区服与段位', icon: 'ri:medal-line' }] : []),
+    ...(has('business:game:update')
+      ? [{ key: 'config', label: '区服与段位', icon: 'ri:medal-line' }]
+      : []),
     ...(has('business:game:update') ? [{ key: 'edit', label: '编辑', icon: 'ri:edit-line' }] : []),
     ...(has('business:game:delete')
       ? [{ key: 'delete', label: '删除', icon: 'ri:delete-bin-line', color: '#f56c6c' }]
@@ -143,7 +192,8 @@
   }
   async function save() {
     if (!editing.gameCode || !editing.gameName) return ElMessage.warning('请填写游戏编码和名称')
-    editing.id ? await updateGame(editing.id, editing) : await createGame(editing)
+    if (editing.id) await updateGame(editing.id, editing)
+    else await createGame(editing)
     visible.value = false
     ElMessage.success('保存成功')
     load()
@@ -155,10 +205,22 @@
       load()
     }
   }
+  function platformText(platform: string) {
+    return { MOBILE: '手游', PC: '电脑', CONSOLE: '主机', OTHER: '其他' }[platform] || platform
+  }
+  function platformIcon(platform: string) {
+    return (
+      { MOBILE: 'ri:smartphone-line', PC: 'ri:computer-line', CONSOLE: 'ri:gamepad-line' }[
+        platform
+      ] || 'ri:apps-line'
+    )
+  }
   async function action(k: any, r: any) {
     if (k === 'edit') open(r)
-    else if(k==='config'){configGame.value=r;configVisible.value=true}
-    else if (k === 'positions') {
+    else if (k === 'config') {
+      configGame.value = r
+      configVisible.value = true
+    } else if (k === 'positions') {
       positionGame.value = r
       positionVisible.value = true
     } else {
@@ -169,3 +231,49 @@
   }
   onMounted(load)
 </script>
+<style scoped>
+  .row-index {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--el-color-primary);
+    background: var(--el-color-primary-light-9);
+    border-radius: 9px;
+  }
+
+  .game-icon {
+    display: block;
+    width: 48px;
+    height: 48px;
+    margin: 0 auto;
+    overflow: hidden;
+    background: var(--el-fill-color-light);
+    border: 1px solid var(--el-border-color-lighter);
+    border-radius: 12px;
+  }
+
+  .game-cover {
+    display: block;
+    width: 128px;
+    height: 58px;
+    overflow: hidden;
+    background: var(--el-fill-color-light);
+    border: 1px solid var(--el-border-color-lighter);
+    border-radius: 9px;
+  }
+
+  .image-fallback,
+  .cover-fallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    font-size: 22px;
+    color: var(--el-text-color-placeholder);
+  }
+</style>

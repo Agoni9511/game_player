@@ -16,6 +16,7 @@
       "pages": [
         { "path": "profile-edit", "style": { "navigationBarTitleText": "个人资料" } },
         { "path": "player-application", "style": { "navigationBarTitleText": "申请成为陪玩师" } },
+        { "path": "service-tickets", "style": { "navigationBarTitleText": "联系客服" } },
         { "path": "recharge", "style": { "navigationBarTitleText": "钱包充值" } },
         { "path": "wallet-transactions", "style": { "navigationBarTitleText": "资金明细" } },
         { "path": "player-detail", "style": { "navigationBarTitleText": "陪玩师详情" } },

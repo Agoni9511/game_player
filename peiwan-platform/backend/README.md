@@ -25,3 +25,26 @@
 - `platform-message`：订单消息、客服、评价和投诉。
 
 权限模型统一使用 RBAC：用户关联角色，角色关联权限和菜单。
+
+## 文件存储
+
+默认使用本地目录 `./data/uploads`。后端会依次加载资源目录中的
+`src/main/resources/application-private.yml` 和部署目录下的
+`config/application-private.yml`，两处文件均已被 Git 忽略，外部配置优先级更高。
+资源目录模板集中保存 MySQL、管理员、JWT 和 COS 配置；填写后重新打包，原有
+`POST /api/file/upload` 接口会切换到腾讯云 COS。
+
+部署环境也可以使用以下环境变量覆盖配置：
+
+```powershell
+$env:STORAGE_TYPE = 'cos'
+$env:COS_SECRET_ID = 'CAM 子账号 SecretId'
+$env:COS_SECRET_KEY = 'CAM 子账号 SecretKey'
+$env:COS_BUCKET = 'bucket-name-APPID'
+$env:COS_REGION = 'ap-guangzhou'
+$env:COS_PUBLIC_BASE_URL = 'https://bucket-name-APPID.cos.ap-guangzhou.myqcloud.com'
+$env:COS_PREFIX = 'peiwan'
+```
+
+`COS_PUBLIC_BASE_URL` 可省略，系统会根据 Bucket 和 Region 生成默认 HTTPS 域名。
+密钥只能通过环境变量或部署平台的密钥管理注入，不得写入配置文件或提交到 Git。

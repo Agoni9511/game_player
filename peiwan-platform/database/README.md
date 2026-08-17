@@ -1,62 +1,57 @@
 # MySQL 数据库
 
-推荐数据库名：`peiwan_platform`，与后端的 `application-mysql.yml` 默认配置一致。
+后端默认连接数据库 `peiwan_platform`，数据库配置见
+`backend/src/main/resources/application-mysql.yml`。
 
-## 服务器初始化
+## 现有服务器数据库更新
 
-先在 MySQL 8.0+ 服务器上执行：
+服务器上的 MySQL 数据库已经存在并具备 V51 表结构，因此不再执行全量建库脚本，
+依次执行业务数据和客服工单两个增量：
 
 ```bash
-mysql -u root -p < database/00_create_database.sql
-mysql -u root -p < database/01_full_schema.sql
-mysql -u root -p < database/02_seed_menu_data.sql
+mysql --default-character-set=utf8mb4 -u root -p peiwan_platform < database/03_incremental_business_data.sql
+mysql --default-character-set=utf8mb4 -u root -p peiwan_platform < database/04_customer_service_ticket.sql
 ```
 
-生产环境建议取消 `00_create_database.sql` 中应用账号相关语句的注释，替换强密码，
-并把账号允许登录的主机从 `%` 收紧为后端服务器固定 IP。
+该增量包含：
 
-`01_full_schema.sql` 是可以直接执行的 MySQL 8 全量表结构，共 71 张业务表，覆盖系统用户、
-RBAC、游戏配置、陪玩师、商品、交易订单、支付、派单、履约、售后、会员、钱包、充值、
-结算、提现和财务流水。脚本不包含演示业务数据，也不会写入默认明文密码。
+- 10 个测试用户，其中 5 个绑定陪玩师；
+- 45 个陪玩师标签；
+- 无畏契约、三角洲行动及 COS 图片、区服、位置和段位体系；
+- 4 个充值套餐。
+- 客服工单、会话消息表，以及管理端菜单权限。
 
-`02_seed_menu_data.sql` 初始化当前后台的全部菜单、按钮权限和角色授权：142 条菜单/权限，
-其中 `admin` 授权 142 条、`customer` 授权 12 条、`player` 授权 14 条。该脚本可以重复执行。
+脚本按业务编码幂等写入，可以重复执行；测试账号密码统一为 `123456`。
 
-## 完整业务表与后续升级
+## 后端连接配置
 
-业务表的唯一结构来源是后端 Flyway 迁移目录：
-
-`backend/src/main/resources/db/migration/`
-
-现有 Flyway 文件同时承担开发环境 H2 建库和演示数据初始化。完整上线前应继续制作并验证
-MySQL 专用的增量迁移，不能把现有文件直接、乱序粘贴到生产库。`01_full_schema.sql` 与 Flyway
-初始化属于两种建库方式，不应在同一个空库中混用。
-
-后端连接 MySQL 的环境变量如下：
+后端默认启用 MySQL Profile。部署时通过环境变量提供服务器数据库连接和生产密码：
 
 ```powershell
-$env:SPRING_PROFILES_ACTIVE = "mysql"
 $env:DB_URL = "jdbc:mysql://数据库地址:3306/peiwan_platform?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai"
 $env:DB_USERNAME = "peiwan_app"
 $env:DB_PASSWORD = "你的强密码"
-$env:ADMIN_INITIAL_PASSWORD = "管理员初始强密码"
-$env:SPRING_FLYWAY_ENABLED = "false" # 使用全量建表脚本初始化时关闭
+$env:ADMIN_INITIAL_PASSWORD = "管理员强密码"
 java -jar backend/target/platform-backend-0.1.0.jar
 ```
 
-如果使用全量建表脚本，应设置 `$env:SPRING_FLYWAY_ENABLED = "false"`；待 MySQL 专用增量
-迁移准备好后再恢复 Flyway。可用以下 SQL 检查建库结果：
+后端不再集成 Flyway，启动时不会自动重建或修改服务器表结构。后续结构变化应提供独立、
+可审查和可回滚的 MySQL 增量 SQL。
+
+## 更新结果检查
 
 ```sql
 USE `peiwan_platform`;
-SHOW TABLES;
-SELECT COUNT(*) AS menu_count FROM `sys_menu`;
-SELECT r.`code`, COUNT(*) AS permission_count
-FROM `sys_role_menu` rm
-JOIN `sys_role` r ON r.`id` = rm.`role_id`
-GROUP BY r.`code`;
-SHOW CREATE TABLE `sys_user`;
-SHOW CREATE TABLE `pw_trade_order`;
-```
 
-预期 `SHOW TABLES` 返回 71 张业务表，`menu_count` 返回 142。
+SELECT COUNT(*) AS test_user_count
+FROM `sys_user`
+WHERE `username` REGEXP '^user(0[1-9]|10)$';
+
+SELECT `game_code`, `game_name`
+FROM `pw_game`
+WHERE `game_code` IN ('delta-force', 'valorant');
+
+SELECT `plan_code`, `plan_name`
+FROM `pw_recharge_plan`
+WHERE `plan_code` LIKE 'RECHARGE_%';
+```

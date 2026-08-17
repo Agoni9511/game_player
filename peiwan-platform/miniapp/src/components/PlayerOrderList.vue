@@ -66,7 +66,7 @@ function isAbnormal(status:string){return['CANCELLED','AFTER_SALE'].includes(sta
 function open(id:number){uni.navigateTo({url:`/subpackages/player/order-detail?id=${id}`})}
 function submit(order:RecordData){uni.navigateTo({url:`/subpackages/player/submit?id=${order.id}`})}
 function start(order:RecordData){uni.showModal({title:'开始服务',content:'请确认已与顾客核对游戏账号、区服和服务要求。开始后订单将进入服务中。',confirmText:'确认开始',success:async result=>{if(result.confirm){await startOrder(Number(order.id));uni.showToast({title:'服务已开始'});await load()}}})}
-function contact(order:RecordData){uni.showModal({title:'联系平台客服',content:`订单 ${order.orderNo} 当前存在异常，请保留相关凭证并联系平台管理员处理。`,confirmText:'我知道了',showCancel:false})}
+function contact(order:RecordData){uni.navigateTo({url:`/subpackages/customer/service-tickets?orderId=${order.id}`})}
 </script>
 
 <style scoped lang="scss">

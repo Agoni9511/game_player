@@ -29,6 +29,10 @@ export const getCatalogPlayers = (data: { keyword?: string; workStatus?: string;
 export const getCatalogPlayer = (id: number) => request<RecordData>({ url: `/api/customer/catalog/players/${id}`, method: 'GET' })
 export const getPlayerApplication = () => request<RecordData>({ url: '/api/customer/player-application', method: 'GET' })
 export const createPlayerApplication = (data: { realName: string; phone: string; address: string }) => request<{ id: number }>({ url: '/api/customer/player-application', method: 'POST', data })
+export const getCustomerServiceTickets = (current = 1, size = 50) => request<PageResult<RecordData>>({ url: '/api/customer-service/tickets', method: 'GET', data: { current, size } })
+export const getCustomerServiceTicket = (id: number) => request<RecordData>({ url: `/api/customer-service/tickets/${id}`, method: 'GET' })
+export const createCustomerServiceTicket = (data: { orderId?: number; category: string; subject: string; content: string }) => request<{ id: number }>({ url: '/api/customer-service/tickets', method: 'POST', data })
+export const replyCustomerServiceTicket = (id: number, content: string) => request<void>({ url: `/api/customer-service/tickets/${id}/messages`, method: 'POST', data: { content } })
 export interface CreateCustomerOrder {
   skuId: number
   quantity: number
