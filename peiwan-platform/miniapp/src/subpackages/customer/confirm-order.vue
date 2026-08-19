@@ -7,17 +7,17 @@
       <view class="product-main"><view class="product-name">{{ product.productName }}</view><view class="sku-name">{{ selectedSku.skuName || '服务规格' }} · {{ playerCount }} 位陪玩</view><view class="unit-price">¥{{ money(effectivePrice) }}{{ selectedSku.priceType === 'PER_PLAYER' ? '/人' : '/单' }} · {{ skuUnitLabel(selectedSku.unitType, selectedSku.unitCount) }}</view></view>
     </view>
 
-    <view class="card assignment-card"><view class="section-title">接单方式</view><view class="assignment"><view class="assignment-mark">{{ requestedPlayerId ? '定' : '厅' }}</view><view><strong>{{ requestedPlayerId ? `指定 ${requestedPlayerName}` : `${selectedLevel.levelName || '平台'}陪玩大厅` }}</strong><text>{{ requestedPlayerId ? '订单仅推送给该陪玩师' : '付款后发布抢单，由符合等级的陪玩师响应' }}</text></view></view></view>
+    <view class="card assignment-card"><view class="section-title">接单方式</view><view class="assignment"><view class="assignment-mark">{{ requestedPlayerIds.length ? '定' : '厅' }}</view><view><strong>{{ requestedPlayerIds.length ? `指定 ${requestedPlayerNames.join('、')}` : `${selectedLevel.levelName || '平台'}陪玩大厅` }}</strong><text>{{ requestedPlayerIds.length ? `订单优先推送给已选 ${requestedPlayerIds.length} 位陪玩师` : '付款后发布抢单，由符合等级的陪玩师响应' }}</text></view></view></view>
 
     <view class="card">
       <view class="section-title">游戏资料</view>
-      <view v-if="profiles.length" class="field"><label>常用账号</label><picker :range="profileLabels" @change="selectProfile"><view class="picker-value">{{ selectedProfile.gameNickname || '请选择常用账号' }} ›</view></picker></view>
-      <view class="field required"><label>游戏账号</label><input v-model.trim="form.gameAccount" placeholder="请输入用于服务的游戏账号" /></view>
-      <view class="field required"><label>游戏昵称</label><input v-model.trim="form.gameNickname" placeholder="请输入游戏内昵称" /></view>
+      <view v-if="profiles.length" class="field"><label>常用资料</label><picker :range="profileLabels" @change="selectProfile"><view class="picker-value">{{ selectedProfile.gameNickname || '请选择常用资料' }} ›</view></picker></view>
+      <view class="field"><label>游戏ID/UID</label><input v-model.trim="form.gameAccount" placeholder="选填，游戏内ID或UID" /></view>
+      <view class="field"><label>游戏昵称</label><input v-model.trim="form.gameNickname" placeholder="选填" /></view>
       <view class="field"><label>所在区服</label><picker :range="servers" range-key="serverName" @change="selectServer"><view class="picker-value">{{ selectedServer.serverName || '请选择区服' }} ›</view></picker></view>
       <view v-if="primaryRankSystem.id" class="field"><label>{{ primaryRankSystem.systemName }}</label><picker :range="ranks" range-key="rankName" @change="selectRank"><view class="picker-value">{{ selectedRank.rankName || '请选择当前段位' }} ›</view></picker></view>
       <view v-if="primaryRankSystem.id" class="field"><label>目标段位</label><picker :range="ranks" range-key="rankName" @change="selectTargetRank"><view class="picker-value">{{ selectedTargetRank.rankName || '不指定' }} ›</view></picker></view>
-      <view v-if="!selectedProfile.id" class="field"><label>保存账号</label><switch :checked="saveProfile" color="#315c50" @change="toggleSaveProfile" /></view>
+      <view v-if="!selectedProfile.id && canSaveProfile" class="field"><label>保存资料</label><switch :checked="saveProfile" color="#315c50" @change="toggleSaveProfile" /></view>
       <view class="textarea-field"><label>服务要求</label><textarea v-model.trim="form.extraRequirement" maxlength="500" placeholder="目标、时间偏好和其他需要陪玩师注意的事项" /><text>{{ form.extraRequirement.length }}/500</text></view>
     </view>
 
@@ -50,11 +50,11 @@ const product = ref<RecordData>({})
 const selectedSku = ref<RecordData>({})
 const selectedLevel = ref<RecordData>({})
 const playerLevelId = ref(0)
-const requestedPlayerId = ref(0)
-const requestedPlayerName = ref('')
+const requestedPlayerIds = ref<number[]>([])
+const requestedPlayerNames = ref<string[]>([])
 const submitting = ref(false)
 const config=ref<RecordData>({}),profiles=ref<RecordData[]>([]),selectedProfile=ref<RecordData>({}),selectedServer=ref<RecordData>({}),selectedRank=ref<RecordData>({}),selectedTargetRank=ref<RecordData>({}),saveProfile=ref(true)
-const servers=computed(()=>((config.value.servers||[]) as RecordData[])),primaryRankSystem=computed(()=>((config.value.rankSystems||[]) as RecordData[])[0]||{}),ranks=computed(()=>((primaryRankSystem.value.ranks||[]) as RecordData[])),profileLabels=computed(()=>profiles.value.map(x=>`${x.gameNickname} · ${x.serverName||'未选区服'}${x.history?'（最近使用）':''}`))
+const servers=computed(()=>((config.value.servers||[]) as RecordData[])),primaryRankSystem=computed(()=>((config.value.rankSystems||[]) as RecordData[])[0]||{}),ranks=computed(()=>((primaryRankSystem.value.ranks||[]) as RecordData[])),profileLabels=computed(()=>profiles.value.map(x=>`${x.gameNickname || x.gameAccount || '未命名资料'} · ${x.serverName||'未选区服'}${x.history?'（最近使用）':''}`)),canSaveProfile=computed(()=>Boolean(form.gameAccount&&form.gameNickname))
 const form = reactive({ quantity: 1, contactName: '', contactPhone: '', customerRemark: '', gameAccount: '', gameNickname: '', extraRequirement: '' })
 const minQuantity = computed(() => Number(selectedSku.value.minQuantity || 1))
 const maxQuantity = computed(() => selectedSku.value.maxQuantity ? Number(selectedSku.value.maxQuantity) : 0)
@@ -67,8 +67,9 @@ onLoad(async query => {
   const productId = Number(query?.productId || 0)
   const skuId = Number(query?.skuId || 0)
   playerLevelId.value = Number(query?.playerLevelId || 0)
-  requestedPlayerId.value = Number(query?.requestedPlayerId || 0)
-  requestedPlayerName.value = decodeURIComponent(String(query?.requestedPlayerName || '所选陪玩师'))
+  requestedPlayerIds.value = String(query?.requestedPlayerIds || '').split(',').map(Number).filter(Boolean)
+  if (!requestedPlayerIds.value.length && Number(query?.requestedPlayerId || 0)) requestedPlayerIds.value = [Number(query?.requestedPlayerId)]
+  requestedPlayerNames.value = decodeURIComponent(String(query?.requestedPlayerNames || query?.requestedPlayerName || '所选陪玩师')).split(',').filter(Boolean)
   if (!productId || !skuId) return uni.showToast({ title: '商品参数不完整', icon: 'none' })
   product.value = await getCatalogProduct(productId)
   ;[config.value,profiles.value]=await Promise.all([getGameConfig(Number(product.value.gameId)),getCustomerGameProfiles(Number(product.value.gameId))])
@@ -90,8 +91,6 @@ function toggleSaveProfile(event:any){saveProfile.value=Boolean(event.detail.val
 
 function changeQuantity(step: number) { const next = form.quantity + step; if (next < minQuantity.value) return; if (maxQuantity.value && next > maxQuantity.value) return; form.quantity = next }
 function validate() {
-  if (!form.gameAccount) return '请输入游戏账号'
-  if (!form.gameNickname) return '请输入游戏昵称'
   if (!form.contactName) return '请输入联系人'
   if (!/^1\d{10}$/.test(form.contactPhone)) return '请输入正确的11位手机号'
   return ''
@@ -102,8 +101,8 @@ async function submit() {
   submitting.value = true
   try {
     let profileId=Number(selectedProfile.value.id||0)
-    if(!profileId&&saveProfile.value){const saved=await createCustomerGameProfile({gameId:Number(product.value.gameId),serverId:selectedServer.value.id,gameAccount:form.gameAccount,gameNickname:form.gameNickname,isDefault:profiles.value.length===0,ranks:selectedRank.value.id?[{rankSystemId:primaryRankSystem.value.id,rankId:selectedRank.value.id}]:[]});profileId=Number(saved.id)}
-    const result = await createCustomerOrder({ skuId: Number(selectedSku.value.id), quantity: form.quantity, requestedPlayerId:requestedPlayerId.value||undefined, playerLevelId: playerLevelId.value || undefined, customerGameProfileId:profileId||undefined,serverId:Number(selectedServer.value.id)||undefined,currentRankId:Number(selectedRank.value.id)||undefined,targetRankId:Number(selectedTargetRank.value.id)||undefined, contactName: form.contactName, contactPhone: form.contactPhone, customerRemark: form.customerRemark || undefined, gameAccount: form.gameAccount, gameNickname: form.gameNickname, extraRequirement: form.extraRequirement || undefined })
+    if(!profileId&&saveProfile.value&&canSaveProfile.value){const saved=await createCustomerGameProfile({gameId:Number(product.value.gameId),serverId:selectedServer.value.id,gameAccount:form.gameAccount,gameNickname:form.gameNickname,isDefault:profiles.value.length===0,ranks:selectedRank.value.id?[{rankSystemId:primaryRankSystem.value.id,rankId:selectedRank.value.id}]:[]});profileId=Number(saved.id)}
+    const result = await createCustomerOrder({ skuId: Number(selectedSku.value.id), quantity: form.quantity, requestedPlayerId:requestedPlayerIds.value[0]||undefined, requestedPlayerIds: requestedPlayerIds.value.length ? requestedPlayerIds.value : undefined, playerLevelId: playerLevelId.value || undefined, customerGameProfileId:profileId||undefined,serverId:Number(selectedServer.value.id)||undefined,currentRankId:Number(selectedRank.value.id)||undefined,targetRankId:Number(selectedTargetRank.value.id)||undefined, contactName: form.contactName, contactPhone: form.contactPhone, customerRemark: form.customerRemark || undefined, gameAccount: form.gameAccount, gameNickname: form.gameNickname, extraRequirement: form.extraRequirement || undefined })
     uni.showToast({ title: '订单创建成功', icon: 'success' })
     setTimeout(() => uni.redirectTo({ url: `/subpackages/customer/order-detail?id=${result.id}` }), 400)
   } finally { submitting.value = false }

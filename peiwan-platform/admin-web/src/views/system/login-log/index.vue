@@ -15,7 +15,7 @@
         <ElTableColumn prop="ipAddress" label="IP 地址" min-width="140" />
         <ElTableColumn prop="message" label="结果说明" min-width="180" show-overflow-tooltip />
         <ElTableColumn prop="userAgent" label="客户端" min-width="260" show-overflow-tooltip />
-        <ElTableColumn prop="createTime" label="登录时间" width="180" />
+        <ElTableColumn label="登录时间" width="180"><template #default="{row}">{{ formatDateTime(row.createTime) }}</template></ElTableColumn>
       </ElTable>
       <div class="log-pagination"><ElPagination v-model:current-page="query.current" v-model:page-size="query.size" :page-sizes="[10,20,50,100]" :total="total" layout="total, sizes, prev, pager, next, jumper" @change="load" /></div>
     </ElCard>
@@ -23,6 +23,7 @@
 </template>
 <script setup lang="ts">
   import { fetchGetLoginLogs } from '@/api/system-manage'
+  import { formatDateTime } from '@/utils/date'
   defineOptions({name:'LoginLog'})
   const loading=ref(false);const records=ref<Api.SystemManage.LoginLogItem[]>([]);const total=ref(0)
   const query=reactive<{current:number;size:number;username:string;success?:boolean}>({current:1,size:20,username:''})

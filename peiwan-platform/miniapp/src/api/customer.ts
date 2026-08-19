@@ -39,12 +39,13 @@ export interface CreateCustomerOrder {
   contactName: string
   contactPhone: string
   customerRemark?: string
-  gameAccount: string
-  gameNickname: string
+  gameAccount?: string
+  gameNickname?: string
   serverName?: string
   rankName?: string
   extraRequirement?: string
   requestedPlayerId?: number
+  requestedPlayerIds?: number[]
   playerLevelId?: number
   customerGameProfileId?: number
   serverId?: number

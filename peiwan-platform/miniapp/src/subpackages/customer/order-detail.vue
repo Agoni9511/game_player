@@ -41,7 +41,7 @@
       <view class="card">
         <view class="section-title">游戏资料</view>
         <InfoRow label="游戏" :value="text(game.game_name)" />
-        <InfoRow label="游戏账号" :value="text(game.game_account)" />
+        <InfoRow label="游戏ID/UID" :value="text(game.game_account)" />
         <InfoRow label="游戏昵称" :value="text(game.game_nickname)" />
         <InfoRow v-if="game.server_name" label="服务器" :value="text(game.server_name)" />
         <InfoRow v-if="game.rank_name" label="段位" :value="text(game.rank_name)" />
@@ -53,6 +53,10 @@
         <InfoRow v-for="member in members" :key="String(member.id)" :label="text(member.playerName || member.player_name)" value="已加入服务" />
         <InfoRow v-if="!members.length" label="陪玩师" :value="text(detail.playerName)" />
         <InfoRow v-if="detail.customerConfirmDeadline" label="确认截止" :value="formatTime(detail.customerConfirmDeadline)" />
+      </view>
+      <view v-else-if="requestedPlayers.length" class="card">
+        <view class="section-title">已指定陪玩师（{{ requestedPlayers.length }}/{{ detail.requiredPlayerCount || 1 }}）</view>
+        <InfoRow v-for="player in requestedPlayers" :key="String(player.player_id)" :label="text(player.nickname)" value="等待响应" />
       </view>
 
       <view class="card">
@@ -134,6 +138,7 @@ const statusMap: Record<string, { label: string; desc: string }> = {
 const firstItem = computed<RecordData>(() => (detail.value.items as RecordData[] | undefined)?.[0] || {})
 const game = computed<RecordData>(() => (detail.value.gameProfile as RecordData | undefined) || {})
 const members = computed<RecordData[]>(() => (detail.value.members as RecordData[] | undefined) || [])
+const requestedPlayers = computed<RecordData[]>(() => (detail.value.requestedPlayers as RecordData[] | undefined) || [])
 const commitments = computed<RecordData[]>(() => (detail.value.commitments as RecordData[] | undefined) || [])
 const pendingControlRequest = computed<RecordData | undefined>(() => ((detail.value.serviceExceptions as RecordData[] | undefined) || []).find(item => ['PAUSE', 'RESUME'].includes(String(item.request_type)) && item.request_status === 'PENDING'))
 const statusInfo = computed(() => statusMap[String(detail.value.orderStatus)] || { label: '订单进行中', desc: '服务状态正在更新' })

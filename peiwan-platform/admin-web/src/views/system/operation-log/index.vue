@@ -17,7 +17,7 @@
         <ElTableColumn prop="targetId" label="对象 ID" width="100" />
         <ElTableColumn prop="detail" label="操作内容" min-width="220" show-overflow-tooltip />
         <ElTableColumn prop="ipAddress" label="IP 地址" min-width="140" />
-        <ElTableColumn prop="createTime" label="操作时间" width="180" />
+        <ElTableColumn label="操作时间" width="180"><template #default="{row}">{{ formatDateTime(row.createTime) }}</template></ElTableColumn>
       </ElTable>
       <div class="log-pagination"><ElPagination v-model:current-page="query.current" v-model:page-size="query.size" :page-sizes="[10,20,50,100]" :total="total" layout="total, sizes, prev, pager, next, jumper" @change="load" /></div>
     </ElCard>
@@ -25,6 +25,7 @@
 </template>
 <script setup lang="ts">
   import { fetchGetOperationLogs } from '@/api/system-manage'
+  import { formatDateTime } from '@/utils/date'
   defineOptions({name:'OperationLog'})
   const loading=ref(false);const records=ref<Api.SystemManage.OperationLogItem[]>([]);const total=ref(0)
   const query=reactive({current:1,size:20,operator:'',operation:'',targetType:''})

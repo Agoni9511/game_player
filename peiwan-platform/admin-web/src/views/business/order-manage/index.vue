@@ -21,7 +21,7 @@
         <ElTableColumn label="应付金额" width="110"><template #default="{ row }"><span class="text-red-500">¥ {{ money(row.payableAmount) }}</span></template></ElTableColumn>
         <ElTableColumn label="接单成员" min-width="120"><template #default="{ row }"><ElTag v-if="row.memberCount" type="success" effect="plain">{{ row.memberCount }}/{{ row.requiredPlayerCount || 1 }} 人</ElTag><span v-else>-</span></template></ElTableColumn>
         <ElTableColumn label="状态" width="100"><template #default="{ row }"><ElTag :type="statusMeta[row.orderStatus]?.type">{{ statusMeta[row.orderStatus]?.text || row.orderStatus }}</ElTag></template></ElTableColumn>
-        <ElTableColumn prop="createTime" label="创建时间" min-width="165" />
+        <ElTableColumn label="创建时间" min-width="165"><template #default="{ row }">{{ formatDateTime(row.createTime) }}</template></ElTableColumn>
         <ElTableColumn label="操作" width="80" fixed="right"><template #default="{ row }"><ArtButtonMore :list="actions(row)" @click="(i) => action(i.key, row)" /></template></ElTableColumn>
       </ElTable>
       <div class="flex justify-end mt-4"><ElPagination v-model:current-page="query.current" v-model:page-size="query.size" :total="total" layout="total, sizes, prev, pager, next" @change="load" /></div>
@@ -44,15 +44,15 @@
           <ElDescriptionsItem label="接单进度" :span="2">{{ detail.memberCount || 0 }}/{{ detail.requiredPlayerCount || 1 }} 人</ElDescriptionsItem>
         </ElDescriptions>
         <h4 class="my-4">订单成员</h4>
-        <ElTable :data="detail.members || []" border empty-text="暂无陪玩师接单"><ElTableColumn label="陪玩师" min-width="150"><template #default="{row}"><div class="flex items-center gap-2"><ElAvatar :size="28" :src="row.avatarUrl"/>{{row.playerName}}（{{row.playerNo}}）</div></template></ElTableColumn><ElTableColumn label="成员状态" width="105"><template #default="{row}">{{memberText[row.memberStatus] || row.memberStatus}}</template></ElTableColumn><ElTableColumn label="接单来源" width="95"><template #default="{row}">{{sourceText[row.joinSource] || row.joinSource}}</template></ElTableColumn><ElTableColumn prop="joinedAt" label="接单时间" min-width="165"/></ElTable>
+        <ElTable :data="detail.members || []" border empty-text="暂无陪玩师接单"><ElTableColumn label="陪玩师" min-width="150"><template #default="{row}"><div class="flex items-center gap-2"><ElAvatar :size="28" :src="row.avatarUrl"/>{{row.playerName}}（{{row.playerNo}}）</div></template></ElTableColumn><ElTableColumn label="成员状态" width="105"><template #default="{row}">{{memberText[row.memberStatus] || row.memberStatus}}</template></ElTableColumn><ElTableColumn label="接单来源" width="95"><template #default="{row}">{{sourceText[row.joinSource] || row.joinSource}}</template></ElTableColumn><ElTableColumn label="接单时间" min-width="165"><template #default="{row}">{{formatDateTime(row.joinedAt)}}</template></ElTableColumn></ElTable>
         <h4 class="my-4">商品快照</h4>
         <ElTable :data="detail.items" border><ElTableColumn prop="productName" label="商品" /><ElTableColumn prop="skuName" label="规格" /><ElTableColumn label="单价" width="90"><template #default="{ row }">¥ {{ money(row.unitPrice) }}</template></ElTableColumn><ElTableColumn label="价格来源" width="105"><template #default="{row}">{{row.pricingRuleId?'等级规则':'SKU 兜底'}}</template></ElTableColumn><ElTableColumn prop="quantity" label="数量" width="65" /></ElTable>
         <ElDivider content-position="left">订单承诺</ElDivider>
         <ElTable :data="detail.commitments || []" border empty-text="本单无承诺规则"><ElTableColumn prop="title" label="承诺" min-width="130"/><ElTableColumn label="目标" width="100"><template #default="{row}">{{row.targetValue==null?'-':`${row.targetValue}${row.targetUnit||''}`}}</template></ElTableColumn><ElTableColumn prop="description" label="规则说明" min-width="160"/><ElTableColumn prop="failureAction" label="未达标处理" min-width="150"/></ElTable>
         <h4 class="my-4">用户游戏资料</h4>
-        <ElDescriptions v-if="detail.gameProfile" :column="2" border><ElDescriptionsItem label="游戏">{{ detail.gameProfile.gameName }}</ElDescriptionsItem><ElDescriptionsItem label="区服">{{ detail.gameProfile.serverName || '-' }}</ElDescriptionsItem><ElDescriptionsItem label="账号">{{ detail.gameProfile.gameAccount || '-' }}</ElDescriptionsItem><ElDescriptionsItem label="昵称">{{ detail.gameProfile.gameNickname || '-' }}</ElDescriptionsItem><ElDescriptionsItem label="服务要求" :span="2">{{ detail.gameProfile.extraRequirement || '-' }}</ElDescriptionsItem></ElDescriptions>
+        <ElDescriptions v-if="detail.gameProfile" :column="2" border><ElDescriptionsItem label="游戏">{{ detail.gameProfile.gameName }}</ElDescriptionsItem><ElDescriptionsItem label="区服">{{ detail.gameProfile.serverName || '-' }}</ElDescriptionsItem><ElDescriptionsItem label="游戏ID/UID">{{ detail.gameProfile.gameAccount || '-' }}</ElDescriptionsItem><ElDescriptionsItem label="昵称">{{ detail.gameProfile.gameNickname || '-' }}</ElDescriptionsItem><ElDescriptionsItem label="服务要求" :span="2">{{ detail.gameProfile.extraRequirement || '-' }}</ElDescriptionsItem></ElDescriptions>
         <h4 class="my-4">状态记录</h4>
-        <ElTimeline><ElTimelineItem v-for="x in detail.statusLogs" :key="x.id" :timestamp="x.createTime" placement="top"><div>{{ statusMeta[x.toStatus]?.text || x.toStatus }}</div><small>{{ x.operatorName || '系统' }}{{ x.reason ? ` · ${x.reason}` : '' }}</small></ElTimelineItem></ElTimeline>
+        <ElTimeline><ElTimelineItem v-for="x in detail.statusLogs" :key="x.id" :timestamp="formatDateTime(x.createTime)" placement="top"><div>{{ statusMeta[x.toStatus]?.text || x.toStatus }}</div><small>{{ x.operatorName || '系统' }}{{ x.reason ? ` · ${x.reason}` : '' }}</small></ElTimelineItem></ElTimeline>
       </template>
     </ElDrawer>
 
@@ -69,6 +69,7 @@
   import CreateOrderPage from './modules/create-order-page.vue'
   import { fetchOrders, fetchOrder, setOrderStatus, confirmOrderPayment, fetchEligiblePlayers, createDispatch } from '@/api/business-manage'
   import { useUserStore } from '@/store/modules/user'
+  import { formatDateTime } from '@/utils/date'
   const store = useUserStore(), has = (c: string) => store.info.roles?.includes('admin') || store.info.buttons?.includes(c)
   const loading = ref(false), rows = ref<Api.Business.Order[]>([]), total = ref(0), createVisible = ref(false), detailVisible = ref(false), assignVisible = ref(false), detail = ref<Api.Business.Order>(), players = ref<any[]>([]), currentOrder = ref<any>()
   const query = reactive<any>({ current: 1, size: 20, orderNo: '', customerName: '', orderStatus: '' }), assignForm = reactive<any>({})

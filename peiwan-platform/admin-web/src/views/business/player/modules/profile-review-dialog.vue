@@ -3,7 +3,7 @@
     <ElTable v-loading="loading" :data="rows" empty-text="暂无待审核资料">
       <ElTableColumn prop="playerNo" label="陪玩师编号" min-width="150" />
       <ElTableColumn prop="nickname" label="当前昵称" min-width="130" />
-      <ElTableColumn prop="submittedAt" label="提交时间" min-width="180" />
+      <ElTableColumn label="提交时间" min-width="180"><template #default="{ row }">{{ formatDateTime(row.submittedAt) }}</template></ElTableColumn>
       <ElTableColumn label="状态" width="100"><template #default="{ row }"><ElTag type="warning">{{ statusText(row.draftStatus) }}</ElTag></template></ElTableColumn>
       <ElTableColumn label="操作" width="90"><template #default="{ row }"><ElButton link type="primary" @click="openDetail(row.id)">审核</ElButton></template></ElTableColumn>
     </ElTable>
@@ -17,7 +17,7 @@
           <ElDescriptionsItem label="手机号">{{ detail.draft.phone || '-' }}</ElDescriptionsItem>
           <ElDescriptionsItem label="邮箱">{{ detail.draft.email || '-' }}</ElDescriptionsItem>
           <ElDescriptionsItem label="性别">{{ genderText(detail.draft.gender) }}</ElDescriptionsItem>
-          <ElDescriptionsItem label="提交时间">{{ detail.submittedAt || '-' }}</ElDescriptionsItem>
+          <ElDescriptionsItem label="提交时间">{{ formatDateTime(detail.submittedAt) }}</ElDescriptionsItem>
           <ElDescriptionsItem label="个人介绍" :span="2">{{ detail.draft.introduction || '-' }}</ElDescriptionsItem>
         </ElDescriptions>
 
@@ -50,6 +50,7 @@
 
 <script setup lang="ts">
 import { auditPlayerProfileDraft, fetchGameOptions, fetchGamePositions, fetchPlayerProfileDraft, fetchPlayerProfileDrafts, fetchTagOptions } from '@/api/business-manage'
+import { formatDateTime } from '@/utils/date'
 
 const props = defineProps<{ modelValue: boolean }>()
 const emit = defineEmits(['update:modelValue'])

@@ -64,7 +64,7 @@
         <ElTableColumn label="实付构成" min-width="155"><template #default="{row}">现金 {{money(row.cash_amount)}} / 赠送 {{money(row.bonus_amount)}}</template></ElTableColumn>
         <ElTableColumn label="退款" width="105"><template #default="{row}">¥ {{money(Number(row.refunded_cash_amount||0)+Number(row.refunded_bonus_amount||0))}}</template></ElTableColumn>
         <ElTableColumn label="状态" width="90"><template #default="{row}"><ElTag :type="row.payment_status==='REFUNDED'?'warning':'success'">{{row.payment_status==='REFUNDED'?'已退款':'已支付'}}</ElTag></template></ElTableColumn>
-        <ElTableColumn prop="paid_at" label="支付时间" min-width="165"/>
+        <ElTableColumn label="支付时间" min-width="165"><template #default="{row}">{{formatDateTime(row.paid_at)}}</template></ElTableColumn>
       </ElTable>
 
       <ElTable v-else-if="activeTab==='platform'" v-loading="loading" :data="rows" empty-text="暂无平台账本记录">
@@ -72,28 +72,28 @@
         <ElTableColumn label="业务类型" min-width="155"><template #default="{row}">{{platformTypeText(row.business_type)}}</template></ElTableColumn>
         <ElTableColumn label="方向" width="85"><template #default="{row}"><DirectionTag :direction="row.direction"/></template></ElTableColumn>
         <ElTableColumn label="金额" width="125"><template #default="{row}"><AmountText :row="row"/></template></ElTableColumn>
-        <ElTableColumn prop="remark" label="说明" min-width="200" show-overflow-tooltip/><ElTableColumn prop="created_at" label="入账时间" min-width="165"/>
+        <ElTableColumn prop="remark" label="说明" min-width="200" show-overflow-tooltip/><ElTableColumn label="入账时间" min-width="165"><template #default="{row}">{{formatDateTime(row.created_at)}}</template></ElTableColumn>
       </ElTable>
 
       <ElTable v-else-if="activeTab==='wallet'" v-loading="loading" :data="rows" empty-text="暂无用户钱包流水">
         <ElTableColumn prop="transaction_no" label="流水号" min-width="205"/><ElTableColumn label="用户" min-width="130"><template #default="{row}">{{row.nickname || row.username || row.owner_id}}</template></ElTableColumn>
         <ElTableColumn prop="business_no" label="业务单号" min-width="175"/><ElTableColumn prop="business_type" label="业务类型" min-width="145"/>
         <ElTableColumn label="余额账户" width="95"><template #default="{row}">{{balanceText(row.balance_type)}}</template></ElTableColumn><ElTableColumn label="变动" width="120"><template #default="{row}"><AmountText :row="row"/></template></ElTableColumn>
-        <ElTableColumn label="余额前后" min-width="155"><template #default="{row}">{{money(row.balance_before)}} → {{money(row.balance_after)}}</template></ElTableColumn><ElTableColumn prop="remark" label="说明" min-width="180" show-overflow-tooltip/><ElTableColumn prop="created_at" label="时间" min-width="165"/>
+        <ElTableColumn label="余额前后" min-width="155"><template #default="{row}">{{money(row.balance_before)}} → {{money(row.balance_after)}}</template></ElTableColumn><ElTableColumn prop="remark" label="说明" min-width="180" show-overflow-tooltip/><ElTableColumn label="时间" min-width="165"><template #default="{row}">{{formatDateTime(row.created_at)}}</template></ElTableColumn>
       </ElTable>
 
       <ElTable v-else-if="activeTab==='player'" v-loading="loading" :data="rows" empty-text="暂无陪玩师账户流水">
         <ElTableColumn prop="transaction_no" label="流水号" min-width="205"/><ElTableColumn label="陪玩师" min-width="150"><template #default="{row}">{{row.nickname}}（{{row.player_no}}）</template></ElTableColumn>
         <ElTableColumn prop="business_no" label="业务单号" min-width="175"/><ElTableColumn prop="business_type" label="业务类型" min-width="155"/>
         <ElTableColumn label="余额账户" width="100"><template #default="{row}">{{balanceText(row.balance_type)}}</template></ElTableColumn><ElTableColumn label="变动" width="120"><template #default="{row}"><AmountText :row="row"/></template></ElTableColumn>
-        <ElTableColumn label="余额前后" min-width="155"><template #default="{row}">{{money(row.balance_before)}} → {{money(row.balance_after)}}</template></ElTableColumn><ElTableColumn prop="remark" label="说明" min-width="190" show-overflow-tooltip/><ElTableColumn prop="created_at" label="时间" min-width="165"/>
+        <ElTableColumn label="余额前后" min-width="155"><template #default="{row}">{{money(row.balance_before)}} → {{money(row.balance_after)}}</template></ElTableColumn><ElTableColumn prop="remark" label="说明" min-width="190" show-overflow-tooltip/><ElTableColumn label="时间" min-width="165"><template #default="{row}">{{formatDateTime(row.created_at)}}</template></ElTableColumn>
       </ElTable>
 
       <ElTable v-else v-loading="loading" :data="rows" empty-text="暂无订单结算记录">
         <ElTableColumn prop="settlement_no" label="结算单号" min-width="205"/><ElTableColumn prop="order_no" label="订单号" min-width="190"/>
         <ElTableColumn label="用户" min-width="130"><template #default="{row}">{{row.nickname || row.username}}</template></ElTableColumn><ElTableColumn label="订单金额" width="110"><template #default="{row}">¥ {{money(row.order_amount)}}</template></ElTableColumn>
         <ElTableColumn label="平台所得" width="110"><template #default="{row}"><span class="income">¥ {{money(row.platform_amount)}}</span></template></ElTableColumn><ElTableColumn label="陪玩分配" width="110"><template #default="{row}">¥ {{money(row.distributable_amount)}}</template></ElTableColumn>
-        <ElTableColumn prop="player_count" label="分配人数" width="90"/><ElTableColumn label="状态" width="90"><template #default><ElTag type="success">已结算</ElTag></template></ElTableColumn><ElTableColumn prop="settled_at" label="结算时间" min-width="165"/>
+        <ElTableColumn prop="player_count" label="分配人数" width="90"/><ElTableColumn label="状态" width="90"><template #default><ElTag type="success">已结算</ElTag></template></ElTableColumn><ElTableColumn label="结算时间" min-width="165"><template #default="{row}">{{formatDateTime(row.settled_at)}}</template></ElTableColumn>
       </ElTable>
 
       <div class="pagination"><ElPagination v-model:current-page="query.current" v-model:page-size="query.size" :total="total" layout="total, sizes, prev, pager, next" @change="loadRows"/></div>
@@ -105,6 +105,7 @@
 import { defineComponent, h } from 'vue'
 import { ElOption, ElSelect, ElTag } from 'element-plus'
 import { fetchFinancePayments,fetchFinancePlatformLedger,fetchFinancePlayerTransactions,fetchFinanceSettlements,fetchFinanceSummary,fetchFinanceWalletTransactions } from '@/api/business-manage'
+import { formatDateTime } from '@/utils/date'
 
 const DirectionSelect=defineComponent({props:{modelValue:String},emits:['update:modelValue'],setup(props,{emit}){return()=>h(ElSelect,{modelValue:props.modelValue,clearable:true,class:'!w-28','onUpdate:modelValue':(v:string)=>emit('update:modelValue',v)},()=>[h(ElOption,{label:'收入',value:'IN'}),h(ElOption,{label:'支出',value:'OUT'})])}})
 const DirectionTag=defineComponent({props:{direction:String},setup:p=>()=>h(ElTag,{type:p.direction==='IN'?'success':'danger',effect:'plain'},()=>p.direction==='IN'?'收入':'支出')})

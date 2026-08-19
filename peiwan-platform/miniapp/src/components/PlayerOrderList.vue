@@ -65,7 +65,7 @@ function reviewHint(order:RecordData){if(order.orderStatus==='PENDING_CONFIRM')r
 function isAbnormal(status:string){return['CANCELLED','AFTER_SALE'].includes(status)}
 function open(id:number){uni.navigateTo({url:`/subpackages/player/order-detail?id=${id}`})}
 function submit(order:RecordData){uni.navigateTo({url:`/subpackages/player/submit?id=${order.id}`})}
-function start(order:RecordData){uni.showModal({title:'开始服务',content:'请确认已与顾客核对游戏账号、区服和服务要求。开始后订单将进入服务中。',confirmText:'确认开始',success:async result=>{if(result.confirm){await startOrder(Number(order.id));uni.showToast({title:'服务已开始'});await load()}}})}
+function start(order:RecordData){uni.showModal({title:'开始服务',content:'请确认已与顾客核对游戏资料、区服和服务要求。开始后订单将进入服务中。',confirmText:'确认开始',success:async result=>{if(result.confirm){await startOrder(Number(order.id));uni.showToast({title:'服务已开始'});await load()}}})}
 function contact(order:RecordData){uni.navigateTo({url:`/subpackages/customer/service-tickets?orderId=${order.id}`})}
 </script>
 

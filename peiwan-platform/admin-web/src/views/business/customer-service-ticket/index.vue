@@ -59,7 +59,7 @@
             <span v-else>-</span>
           </template>
         </ElTableColumn>
-        <ElTableColumn prop="lastMessageAt" label="最近消息" width="180" />
+        <ElTableColumn label="最近消息" width="180"><template #default="{ row }">{{ formatDateTime(row.lastMessageAt) }}</template></ElTableColumn>
         <ElTableColumn label="操作" width="90" fixed="right">
           <template #default="{ row }"
             ><ElButton link type="primary" @click="open(row)">处理</ElButton></template
@@ -106,7 +106,7 @@
           >
             <div class="message-meta"
               >{{ message.senderRole === 'ADMIN' ? '平台客服' : message.senderName }} ·
-              {{ message.createdAt }}</div
+              {{ formatDateTime(message.createdAt) }}</div
             >
             <div class="message-bubble">{{ message.content }}</div>
           </div>
@@ -140,6 +140,7 @@
 </template>
 
 <script setup lang="ts">
+  import { formatDateTime } from '@/utils/date'
   import {
     fetchCustomerServiceTicket,
     fetchCustomerServiceTickets,

@@ -27,6 +27,7 @@
   import { ElMessageBox,ElSwitch,ElTag } from 'element-plus'
   import type { DialogType } from '@/types'
   import { useUserStore } from '@/store/modules/user'
+  import { formatDateTime } from '@/utils/date'
 
   defineOptions({name:'User'})
   type User=Api.SystemManage.UserListItem
@@ -40,7 +41,7 @@
     {prop:'userEmail',label:'邮箱',minWidth:180},
     {prop:'userRoles',label:'角色',minWidth:160,formatter:(row:User)=>h('div',{class:'flex gap-1'},row.userRoles.map(role=>h(ElTag,{size:'small'},()=>role)))},
     {prop:'status',label:'状态',width:100,formatter:(row:User)=>h(ElSwitch,{modelValue:row.enabled,disabled:!hasPermission('system:user:status'),onChange:(value:string|number|boolean)=>changeStatus(row,Boolean(value))})},
-    {prop:'createTime',label:'创建时间',minWidth:170},
+    {prop:'createTime',label:'创建时间',minWidth:170,formatter:(row:User)=>formatDateTime(row.createTime)},
     {prop:'operation',label:'操作',width:80,fixed:'right',formatter:(row:User)=>h(ArtButtonMore,{list:actions(row),onClick:(item:ButtonMoreItem)=>handleAction(item,row)})}
   ]}})
   const userStore=useUserStore();const hasPermission=(code:string)=>userStore.info.roles?.includes('admin')||userStore.info.buttons?.includes(code)

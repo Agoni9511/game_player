@@ -27,11 +27,11 @@
             </ElCard>
 
             <ElCard shadow="never" class="section-card">
-              <template #header><SectionTitle number="2" title="游戏资料" desc="优先复用用户保存的账号，也可以为本单临时填写" /></template>
+              <template #header><SectionTitle number="2" title="游戏资料" desc="有历史资料时自动回填，没有也可以留空" /></template>
               <ElRow :gutter="18">
-                <ElCol :span="8"><ElFormItem label="保存的游戏账号"><ElSelect v-model="form.customerGameProfileId" clearable class="w-full" placeholder="不使用保存账号" @change="profileChanged"><ElOption v-for="x in gameProfiles.filter((p:any)=>p.id)" :key="x.id" :label="`${x.gameNickname}（${x.gameAccount}）`" :value="x.id" /></ElSelect></ElFormItem></ElCol>
-                <ElCol :span="8"><ElFormItem label="游戏账号" prop="gameAccount"><ElInput v-model="form.gameAccount" :disabled="Boolean(form.customerGameProfileId)" placeholder="登录账号或游戏 ID" /></ElFormItem></ElCol>
-                <ElCol :span="8"><ElFormItem label="游戏昵称" prop="gameNickname"><ElInput v-model="form.gameNickname" :disabled="Boolean(form.customerGameProfileId)" /></ElFormItem></ElCol>
+                <ElCol :span="8"><ElFormItem label="保存的游戏资料"><ElSelect v-model="form.customerGameProfileId" clearable class="w-full" placeholder="不使用保存资料" @change="profileChanged"><ElOption v-for="x in gameProfiles.filter((p:any)=>p.id)" :key="x.id" :label="`${x.gameNickname || '未填写昵称'}（${x.gameAccount || '未填写ID'}）`" :value="x.id" /></ElSelect></ElFormItem></ElCol>
+                <ElCol :span="8"><ElFormItem label="游戏ID/UID"><ElInput v-model="form.gameAccount" :disabled="Boolean(form.customerGameProfileId)" placeholder="选填，游戏内ID或UID" /></ElFormItem></ElCol>
+                <ElCol :span="8"><ElFormItem label="游戏昵称"><ElInput v-model="form.gameNickname" :disabled="Boolean(form.customerGameProfileId)" placeholder="选填" /></ElFormItem></ElCol>
                 <ElCol :span="8"><ElFormItem label="区服"><ElSelect v-model="form.serverId" clearable class="w-full"><ElOption v-for="x in servers" :key="x.id" :label="x.serverName" :value="x.id" /></ElSelect></ElFormItem></ElCol>
                 <ElCol :span="8"><ElFormItem label="当前段位"><ElSelect v-model="form.currentRankId" clearable filterable class="w-full"><ElOptionGroup v-for="x in rankSystems" :key="x.id" :label="x.systemName"><ElOption v-for="r in x.ranks || []" :key="r.id" :label="r.rankName" :value="r.id" /></ElOptionGroup></ElSelect></ElFormItem></ElCol>
                 <ElCol :span="8"><ElFormItem label="目标段位"><ElSelect v-model="form.targetRankId" clearable filterable class="w-full"><ElOptionGroup v-for="x in rankSystems" :key="x.id" :label="x.systemName"><ElOption v-for="r in x.ranks || []" :key="r.id" :label="r.rankName" :value="r.id" /></ElOptionGroup></ElSelect></ElFormItem></ElCol>
@@ -41,9 +41,9 @@
             <ElCard shadow="never" class="section-card">
               <template #header><SectionTitle number="3" title="服务与联系信息" desc="可限定陪玩等级或指定陪玩师，留空则按派单规则匹配" /></template>
               <ElRow :gutter="18">
-                <ElCol :span="8"><ElFormItem label="陪玩等级"><ElSelect v-model="form.playerLevelId" clearable class="w-full" :disabled="Boolean(form.requestedPlayerId)" @change="levelChanged"><ElOption v-for="x in playerLevels" :key="x.id" :label="x.level_name || x.levelName" :value="x.id" /></ElSelect></ElFormItem></ElCol>
-                <ElCol :span="8"><ElFormItem label="指定陪玩师"><ElSelect v-model="form.requestedPlayerId" clearable filterable class="w-full" placeholder="不指定，后续统一派单" @change="playerChanged"><ElOption v-for="x in filteredPlayers" :key="x.id" :label="`${x.nickname}（${x.player_no}）· ${x.level_name || '未设等级'}`" :value="x.id" /></ElSelect></ElFormItem></ElCol>
-                <ElCol :span="8"><ElFormItem label="陪玩师状态"><ElInput :model-value="selectedPlayer ? workStatusText(selectedPlayer.work_status) : '未指定'" disabled /></ElFormItem></ElCol>
+                <ElCol :span="8"><ElFormItem label="陪玩等级"><ElSelect v-model="form.playerLevelId" clearable class="w-full" @change="levelChanged"><ElOption v-for="x in playerLevels" :key="x.id" :label="x.level_name || x.levelName" :value="x.id" /></ElSelect></ElFormItem></ElCol>
+                <ElCol :span="8"><ElFormItem label="指定陪玩师"><ElSelect v-model="form.requestedPlayerIds" multiple :multiple-limit="Number(selectedSku?.playerCount || 1)" clearable filterable collapse-tags class="w-full" placeholder="可多选，留空则统一派单" @change="playerChanged"><ElOption v-for="x in filteredPlayers" :key="x.id" :label="`${x.nickname}（${x.player_no}）· ${x.level_name || '未设等级'}`" :value="x.id" /></ElSelect></ElFormItem></ElCol>
+                <ElCol :span="8"><ElFormItem label="陪玩师状态"><ElInput :model-value="selectedPlayers.length ? `已选 ${selectedPlayers.length} 人：${selectedPlayers.map((x:any) => workStatusText(x.work_status)).join('、')}` : '未指定'" disabled /></ElFormItem></ElCol>
                 <ElCol :span="8"><ElFormItem label="联系人" prop="contactName"><ElInput v-model="form.contactName" /></ElFormItem></ElCol>
                 <ElCol :span="8"><ElFormItem label="联系电话" prop="contactPhone"><ElInput v-model="form.contactPhone" maxlength="11" /></ElFormItem></ElCol>
                 <ElCol :span="24"><ElFormItem label="服务要求"><ElInput v-model="form.extraRequirement" type="textarea" :rows="3" placeholder="例如常用位置、沟通偏好、希望完成的目标等" /></ElFormItem></ElCol>
@@ -100,7 +100,7 @@
   }
   const enabledSkus = computed<any[]>(() => productDetail.value?.skus?.filter((x:any) => x.enabled) || [])
   const selectedSku = computed(() => enabledSkus.value.find(x => x.id === form.skuId))
-  const selectedPlayer = computed(() => players.value.find(x => x.id === form.requestedPlayerId))
+  const selectedPlayers = computed(() => players.value.filter(x => (form.requestedPlayerIds || []).includes(x.id)))
   const filteredPlayers = computed(() => form.playerLevelId ? players.value.filter(x => Number(x.price_level_id) === Number(form.playerLevelId)) : players.value)
   const effectiveUnitPrice = computed(() => selectedSku.value?.levelPrices?.find((x:any) => Number(x.playerLevelId) === Number(form.playerLevelId) && x.enabled)?.price ?? selectedSku.value?.price ?? 0)
   const estimatedTotal = computed(() => Number(effectiveUnitPrice.value) * Number(form.quantity || 1) * (selectedSku.value?.priceType === 'FIXED_TOTAL' || productDetail.value?.productType === 'PACKAGE' ? 1 : Number(selectedSku.value?.playerCount || 1)))
@@ -112,26 +112,26 @@
     try {
       const [customerRows, productPage] = await Promise.all([fetchOrderCustomers(), fetchProducts({ current: 1, size: 200, status: 'ON_SALE' })])
       customers.value = customerRows; products.value = productPage.records
-      Object.assign(form, { customerId: undefined, productId: undefined, skuId: undefined, quantity: 1, contactName: '', contactPhone: '', customerRemark: '', gameAccount: '', gameNickname: '', customerGameProfileId: undefined, serverId: undefined, currentRankId: undefined, targetRankId: undefined, extraRequirement: '', playerLevelId: undefined, requestedPlayerId: undefined, paymentStatus: 'UNPAID', paymentChannel: 'MANUAL_WECHAT' })
+      Object.assign(form, { customerId: undefined, productId: undefined, skuId: undefined, quantity: 1, contactName: '', contactPhone: '', customerRemark: '', gameAccount: '', gameNickname: '', customerGameProfileId: undefined, serverId: undefined, currentRankId: undefined, targetRankId: undefined, extraRequirement: '', playerLevelId: undefined, requestedPlayerId: undefined, requestedPlayerIds: [], paymentStatus: 'UNPAID', paymentChannel: 'MANUAL_WECHAT' })
       productDetail.value = undefined; clearGameOptions()
     } finally { loading.value = false }
   }
   function clearGameOptions() { gameProfiles.value = []; servers.value = []; rankSystems.value = []; playerLevels.value = []; players.value = [] }
   function customerChanged(id:number) { const row = customers.value.find(x => x.id === id); form.contactName = row?.label || ''; form.contactPhone = row?.phone || ''; resetGameProfile(); loadCreateOptions() }
   async function productChanged(id:number) { productDetail.value = await fetchProduct(id); form.skuId = enabledSkus.value[0]?.id; form.quantity = selectedSku.value?.minQuantity || 1; resetGameProfile(); await loadCreateOptions() }
-  function skuChanged() { form.quantity = Math.max(Number(form.quantity || 1), Number(selectedSku.value?.minQuantity || 1)) }
-  async function loadCreateOptions() { if (!form.customerId || !productDetail.value?.gameId) return clearGameOptions(); const data = await fetchOrderCreateOptions(form.customerId, productDetail.value.gameId); gameProfiles.value = data.gameProfiles || []; servers.value = data.gameConfig?.servers || []; rankSystems.value = data.gameConfig?.rankSystems || []; playerLevels.value = data.playerLevels || []; players.value = data.players || [] }
-  function resetGameProfile() { Object.assign(form, { customerGameProfileId: undefined, serverId: undefined, currentRankId: undefined, targetRankId: undefined, gameAccount: '', gameNickname: '', playerLevelId: undefined, requestedPlayerId: undefined }) }
-  function profileChanged(id?:number) { const row = gameProfiles.value.find(x => x.id === id); if (!row) return; form.gameAccount = row.gameAccount; form.gameNickname = row.gameNickname; form.serverId = row.serverId; form.currentRankId = row.ranks?.[0]?.rankId }
-  function levelChanged() { if (form.requestedPlayerId && !filteredPlayers.value.some(x => x.id === form.requestedPlayerId)) form.requestedPlayerId = undefined }
-  function playerChanged(id?:number) { const row = players.value.find(x => x.id === id); if (row?.price_level_id) form.playerLevelId = row.price_level_id }
+  function skuChanged() { form.quantity = Math.max(Number(form.quantity || 1), Number(selectedSku.value?.minQuantity || 1)); form.requestedPlayerIds = (form.requestedPlayerIds || []).slice(0, Number(selectedSku.value?.playerCount || 1)) }
+  async function loadCreateOptions() { if (!form.customerId || !productDetail.value?.gameId) return clearGameOptions(); const data = await fetchOrderCreateOptions(form.customerId, productDetail.value.gameId); gameProfiles.value = data.gameProfiles || []; servers.value = data.gameConfig?.servers || []; rankSystems.value = data.gameConfig?.rankSystems || []; playerLevels.value = data.playerLevels || []; players.value = data.players || []; const preferred = gameProfiles.value.find((x:any) => x.id && x.isDefault) || gameProfiles.value[0]; if (preferred) applyProfile(preferred) }
+  function resetGameProfile() { Object.assign(form, { customerGameProfileId: undefined, serverId: undefined, currentRankId: undefined, targetRankId: undefined, gameAccount: '', gameNickname: '', playerLevelId: undefined, requestedPlayerId: undefined, requestedPlayerIds: [] }) }
+  function applyProfile(row:any) { form.customerGameProfileId = row.id || undefined; form.gameAccount = row.gameAccount || ''; form.gameNickname = row.gameNickname || ''; form.serverId = row.serverId; form.currentRankId = row.ranks?.[0]?.rankId || row.currentRankId }
+  function profileChanged(id?:number) { const row = gameProfiles.value.find(x => x.id === id); if (row) applyProfile(row); else Object.assign(form, { gameAccount: '', gameNickname: '', serverId: undefined, currentRankId: undefined, targetRankId: undefined }) }
+  function levelChanged() { form.requestedPlayerIds = (form.requestedPlayerIds || []).filter((id:number) => filteredPlayers.value.some(x => x.id === id)) }
+  function playerChanged(ids?:number[]) { const selected = (ids || []).map(Number); const first = players.value.find(x => x.id === selected[0]); if (first?.price_level_id) { form.playerLevelId = first.price_level_id; form.requestedPlayerIds = selected.filter(id => players.value.find(x => x.id === id)?.price_level_id === first.price_level_id) } }
   async function submit() {
     await formRef.value?.validate()
-    if (!form.customerGameProfileId && (!form.gameAccount?.trim() || !form.gameNickname?.trim())) return ElMessage.warning('请选择保存的游戏账号，或完整填写游戏账号和昵称')
     if (form.currentRankId && form.targetRankId && rankIndex(form.targetRankId) < rankIndex(form.currentRankId)) return ElMessage.warning('目标段位不能低于当前段位')
     saving.value = true
     try {
-      const result = await createOrder({ ...form, serverName: undefined, rankName: undefined })
+      const result = await createOrder({ ...form, requestedPlayerId: form.requestedPlayerIds?.[0], serverName: undefined, rankName: undefined })
       if (form.paymentStatus === 'PAID') {
         try { await confirmOrderPayment(result.id, form.paymentChannel) } catch { ElMessage.warning('订单已创建，但确认收款失败，请在订单列表中重新确认') }
       }

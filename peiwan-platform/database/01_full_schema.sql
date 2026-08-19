@@ -437,6 +437,10 @@ CREATE TABLE `pw_dispatch_rule`(
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+INSERT INTO `pw_dispatch_rule` (`rule_name`,`grab_minutes`,`max_candidates`,`allow_busy`,`max_active_orders`,`allow_reoffer_after_reject`,`enabled`)
+SELECT '默认派单规则', 10, 10, 0, 3, 0, 1
+WHERE NOT EXISTS (SELECT 1 FROM `pw_dispatch_rule`);
+
 CREATE TABLE `pw_dispatch_task`(
     `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     `task_no` VARCHAR(40) NOT NULL,
@@ -534,6 +538,10 @@ CREATE TABLE `pw_order_rule`(
     `auto_complete_enabled` TINYINT(1) DEFAULT 1 NOT NULL,
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO `pw_order_rule` (`customer_confirm_hours`,`auto_complete_enabled`)
+SELECT 24, 1
+WHERE NOT EXISTS (SELECT 1 FROM `pw_order_rule`);
 
 CREATE TABLE `pw_after_sale`(
     `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -702,6 +710,11 @@ CREATE TABLE `pw_commission_rule`(
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+INSERT INTO `pw_commission_rule`
+    (`rule_code`,`rule_name`,`commission_rate`,`min_withdraw_amount`,`withdraw_weekday`,`enabled`)
+SELECT 'DEFAULT','默认抽佣规则',0.2800,300.00,1,1
+WHERE NOT EXISTS (SELECT 1 FROM `pw_commission_rule` WHERE `enabled`=1);
+
 CREATE TABLE `pw_player_account`(
     `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     `player_id` BIGINT NOT NULL,
@@ -827,6 +840,15 @@ CREATE TABLE `pw_order_member`(
 
 CREATE INDEX `ix_pw_order_member_order` ON `pw_order_member`(`order_id`, `member_status`);
 CREATE INDEX `ix_pw_order_member_player` ON `pw_order_member`(`player_id`, `member_status`);
+CREATE TABLE `pw_order_requested_player`(
+    `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    `order_id` BIGINT NOT NULL,
+    `player_id` BIGINT NOT NULL,
+    `sort_no` INT DEFAULT 0 NOT NULL,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    UNIQUE KEY `uk_pw_order_requested_player` (`order_id`, `player_id`),
+    KEY `ix_pw_order_requested_player_player` (`player_id`, `order_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 CREATE TABLE `pw_game_rank`(
     `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     `rank_system_id` BIGINT NOT NULL,
@@ -978,6 +1000,22 @@ CREATE TABLE `pw_player_earning`(
 
 CREATE UNIQUE INDEX `uk_pw_player_earning_member` ON `pw_player_earning`(`order_member_id`);
 CREATE INDEX `ix_pw_player_earning_order` ON `pw_player_earning`(`order_id`, `id`);
+CREATE TABLE `pw_service_liability_rule`(
+    `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    `rule_code` VARCHAR(32) NOT NULL,
+    `rule_name` VARCHAR(64) NOT NULL,
+    `transfer_rate` DECIMAL(6, 4) NOT NULL,
+    `abort_rate` DECIMAL(6, 4) NOT NULL,
+    `enabled` TINYINT(1) DEFAULT 1 NOT NULL,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    UNIQUE KEY `uk_pw_service_liability_rule_code` (`rule_code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO `pw_service_liability_rule`
+    (`rule_code`,`rule_name`,`transfer_rate`,`abort_rate`,`enabled`)
+SELECT 'DEFAULT','默认服务责任规则',0.1600,0.2000,1
+WHERE NOT EXISTS (SELECT 1 FROM `pw_service_liability_rule` WHERE `enabled`=1);
+
 CREATE TABLE `pw_service_liability`(
     `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     `liability_no` VARCHAR(48) NOT NULL,

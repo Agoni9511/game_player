@@ -13,6 +13,14 @@ mysql --default-character-set=utf8mb4 -u root -p peiwan_platform < database/03_i
 mysql --default-character-set=utf8mb4 -u root -p peiwan_platform < database/04_customer_service_ticket.sql
 mysql --default-character-set=utf8mb4 -u root -p peiwan_platform < database/05_player_level_seed.sql
 mysql --default-character-set=utf8mb4 -u root -p peiwan_platform < database/06_product_category_seed.sql
+mysql --default-character-set=utf8mb4 -u root -p peiwan_platform < database/07_order_requested_player.sql
+mysql --default-character-set=utf8mb4 -u root -p peiwan_platform < database/08_player_game_seed.sql
+mysql --default-character-set=utf8mb4 -u root -p peiwan_platform < database/09_dispatch_rule_seed.sql
+mysql --default-character-set=utf8mb4 -u root -p peiwan_platform < database/10_dispatch_rule_config.sql
+mysql --default-character-set=utf8mb4 -u root -p peiwan_platform < database/11_order_rule_seed.sql
+mysql --default-character-set=utf8mb4 -u root -p peiwan_platform < database/12_order_rule_config.sql
+mysql --default-character-set=utf8mb4 -u root -p peiwan_platform < database/13_commission_rule_seed.sql
+mysql --default-character-set=utf8mb4 -u root -p peiwan_platform < database/14_service_liability_rule_config.sql
 ```
 
 该增量包含：
@@ -24,6 +32,14 @@ mysql --default-character-set=utf8mb4 -u root -p peiwan_platform < database/06_p
 - 客服工单、会话消息表，以及管理端菜单权限。
 - 三角洲行动 1 个陪玩等级、无畏契约 4 个陪玩等级。
 - `06_product_category_seed.sql` 写入两款游戏按模式划分的商品分类。
+- `07_order_requested_player.sql` 创建多选预选陪玩师关联并迁移旧单指定人。
+- `08_player_game_seed.sql` 为本地测试陪玩师补齐审核通过的游戏资料。
+- `09_dispatch_rule_seed.sql` 写入本地默认派单规则；没有启用规则时，后台无法预览候选人或发布派单。
+- `10_dispatch_rule_config.sql` 增加“基础配置 → 派单规则”菜单、权限并确保存在默认启用规则；远程已有库执行本增量即可。
+- `11_order_rule_seed.sql` 初始化订单确认规则（默认 24 小时自动进入用户确认阶段），避免履约审核通过时提示“未配置订单确认规则”。
+- `12_order_rule_config.sql` 增加“基础配置 → 订单确认规则”菜单及查看、修改权限。
+- `13_commission_rule_seed.sql` 初始化默认抽佣规则（平台抽佣 28%、最低提现 300 元、每周一可提现）。
+- `14_service_liability_rule_config.sql` 增加“基础配置 → 服务责任规则”菜单及查看、修改权限。
 
 如果服务器数据库目前只有空表，先执行 `01_full_schema.sql`（以及需要的菜单脚本），
 再按上面的顺序执行增量；`05` 和 `06` 都依赖 `03` 写入的两个游戏编码。

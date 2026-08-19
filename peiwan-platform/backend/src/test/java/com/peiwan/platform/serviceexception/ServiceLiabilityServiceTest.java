@@ -2,6 +2,7 @@ package com.peiwan.platform.serviceexception;
 
 import com.peiwan.platform.persistence.entity.PlatformLedgerEntity;
 import com.peiwan.platform.persistence.entity.ServiceLiabilityEntity;
+import com.peiwan.platform.persistence.entity.ServiceLiabilityRuleEntity;
 import com.peiwan.platform.persistence.mapper.*;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -23,7 +24,12 @@ class ServiceLiabilityServiceTest {
     var accounts = mock(PlayerAccountMapper.class);
     var accountTransactions = mock(PlayerAccountTransactionMapper.class);
     var platformLedgers = mock(PlatformLedgerMapper.class);
-    var service = new ServiceLiabilityService(liabilities, ledgers, data, accounts, accountTransactions, platformLedgers);
+    var ruleService = mock(ServiceLiabilityRuleService.class);
+    var rule = new ServiceLiabilityRuleEntity();
+    rule.transferRate = new BigDecimal("0.1600");
+    rule.abortRate = new BigDecimal("0.2000");
+    when(ruleService.requiredRule()).thenReturn(rule);
+    var service = new ServiceLiabilityService(liabilities, ledgers, data, accounts, accountTransactions, platformLedgers, ruleService);
 
     when(data.liabilityCount(7L, "TRANSFER_COMPENSATION")).thenReturn(0);
     when(data.baseUnitPrice(7L)).thenReturn(new BigDecimal("100.00"));
@@ -34,30 +40,34 @@ class ServiceLiabilityServiceTest {
     when(accounts.selectCount(any())).thenReturn(1L);
     when(data.lockAccount(21L)).thenReturn(Map.of("id", 31L, "available_balance", new BigDecimal("100.00")));
     when(data.lockAccount(22L)).thenReturn(Map.of("id", 32L, "available_balance", new BigDecimal("80.00")));
+    when(data.lockAccount(23L)).thenReturn(Map.of("id", 33L, "available_balance", new BigDecimal("50.00")));
 
     service.settleTransferCompensations(7L);
 
     verify(data).debit(31L, new BigDecimal("16.00"));
     verify(data).debit(32L, new BigDecimal("16.00"));
-    verify(data, never()).credit(anyLong(), any());
+    verify(data).credit(33L, new BigDecimal("16.00"));
 
     var liabilityCaptor = ArgumentCaptor.forClass(ServiceLiabilityEntity.class);
     verify(liabilities, times(2)).insert(liabilityCaptor.capture());
     assertThat(liabilityCaptor.getAllValues()).allSatisfy(x -> {
       assertThat(x.rootOrderMemberId).isEqualTo(11L);
-      assertThat(x.beneficiaryOrderMemberId).isNull();
-      assertThat(x.beneficiaryPlayerId).isNull();
+      if (x.liableOrderMemberId.equals(11L)) {
+        assertThat(x.beneficiaryOrderMemberId).isEqualTo(13L);
+        assertThat(x.beneficiaryPlayerId).isEqualTo(23L);
+      } else {
+        assertThat(x.beneficiaryOrderMemberId).isNull();
+        assertThat(x.beneficiaryPlayerId).isNull();
+      }
       assertThat(x.rate).isEqualByComparingTo("0.1600");
       assertThat(x.amount).isEqualByComparingTo("16.00");
     });
     assertThat(liabilityCaptor.getAllValues()).extracting(x -> x.liableOrderMemberId).containsExactly(11L, 12L);
 
     var platformCaptor = ArgumentCaptor.forClass(PlatformLedgerEntity.class);
-    verify(platformLedgers, times(2)).insert(platformCaptor.capture());
-    assertThat(platformCaptor.getAllValues()).allSatisfy(x -> {
-      assertThat(x.businessType).isEqualTo("SERVICE_TRANSFER_PENALTY");
-      assertThat(x.direction).isEqualTo("IN");
-      assertThat(x.amount).isEqualByComparingTo("16.00");
-    });
+    verify(platformLedgers, times(1)).insert(platformCaptor.capture());
+    assertThat(platformCaptor.getValue().businessType).isEqualTo("SERVICE_TRANSFER_PENALTY");
+    assertThat(platformCaptor.getValue().direction).isEqualTo("IN");
+    assertThat(platformCaptor.getValue().amount).isEqualByComparingTo("16.00");
   }
 }

@@ -161,7 +161,7 @@
           label="跟进备注"
           min-width="160"
           show-overflow-tooltip
-        /><ElTableColumn prop="createdAt" label="申请时间" width="175" /><ElTableColumn
+        /><ElTableColumn label="申请时间" width="175"><template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template></ElTableColumn><ElTableColumn
           label="操作"
           width="145"
           fixed="right"
@@ -207,6 +207,7 @@
     setPlayerStatus
   } from '@/api/business-manage'
   import { useUserStore } from '@/store/modules/user'
+  import { formatDateTime } from '@/utils/date'
 
   const store = useUserStore()
   const route = useRoute()
