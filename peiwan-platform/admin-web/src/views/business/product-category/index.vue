@@ -1,6 +1,11 @@
 <template>
   <div class="art-full-height"
     ><ElCard class="art-table-card"
+      ><ElAlert
+        class="mb-4"
+        type="info"
+        :closable="false"
+        title="商品分类用于前台按游戏模式或消费场景找商品；基础服务用于定义具体交付内容和等级价格。一个分类可包含多种基础服务。" />
       ><ArtTableHeader :loading="loading" @refresh="load"
         ><template #left
           ><ElButton v-auth="'business:product-category:create'" @click="open()"

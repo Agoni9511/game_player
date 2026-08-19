@@ -37,6 +37,8 @@
       <ArtTableHeader :loading="loading" @refresh="load">
         <template #left
           ><ElButton v-auth="'business:player:create'" @click="open()">新增陪玩师</ElButton
+          ><ElButton v-auth="'business:player:create'" type="primary" @click="batchVisible = true"
+            >批量新增陪玩师</ElButton
           ><ElButton
             v-auth="'business:player:audit'"
             type="warning"
@@ -115,6 +117,7 @@
       /></div>
     </ElCard>
     <ProfileReviewDialog v-model="profileReview" />
+    <BatchPlayerDialog v-model:visible="batchVisible" @submit="load" />
     <ElDialog v-model="applicationVisible" title="陪玩师入驻申请" width="1050px" destroy-on-close>
       <ElAlert
         class="mb-4"
@@ -195,6 +198,7 @@
   import ArtButtonMore from '@/components/core/forms/art-button-more/index.vue'
   import PlayerEditor from './modules/player-dialog.vue'
   import ProfileReviewDialog from './modules/profile-review-dialog.vue'
+  import BatchPlayerDialog from './modules/batch-player-dialog.vue'
   import {
     auditPlayer,
     fetchPlayerApplications,
@@ -213,6 +217,7 @@
     rows = ref<Api.Business.Player[]>([]),
     total = ref(0)
   const profileReview = ref(false)
+  const batchVisible = ref(false)
   const editorOpen = computed(() => route.query.editor === 'player')
   const currentId = computed(() => {
     const id = Number(route.query.id)

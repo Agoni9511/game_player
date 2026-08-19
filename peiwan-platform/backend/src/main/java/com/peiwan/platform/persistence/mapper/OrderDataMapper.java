@@ -5,6 +5,8 @@ public interface OrderDataMapper{
  @Select("select l.*,u.username operator_name from pw_order_status_log l left join sys_user u on u.id=l.operator_id where l.order_id=#{id} order by l.id") List<Map<String,Object>> statusLogs(long id);
  @Select("select id,username,nickname,phone from sys_user where enabled=true order by id") List<Map<String,Object>> customers();
  @Select("select id,player_no,nickname from pw_player where enabled=true and audit_status='APPROVED' order by sort_no,id") List<Map<String,Object>> players();
+ @Select("select id,level_code,level_name,sort_no from pw_player_level where game_id=#{gameId} and enabled=true order by sort_no,id") List<Map<String,Object>> playerLevels(long gameId);
+ @Select("select p.id,p.player_no,p.nickname,p.work_status,p.rating_score,pg.price_level_id,l.level_name from pw_player p join pw_player_game pg on pg.player_id=p.id and pg.game_id=#{gameId} and pg.enabled=true and pg.audit_status='APPROVED' left join pw_player_level l on l.id=pg.price_level_id where p.enabled=true and p.audit_status='APPROVED' order by case when p.work_status='AVAILABLE' then 0 else 1 end,p.rating_score desc,p.sort_no,p.id") List<Map<String,Object>> createPlayers(long gameId);
  @Select("select * from sys_user where id=#{id} and enabled=true") Map<String,Object> enabledCustomer(long id);
  @Select("select k.*,p.game_id,p.product_code,p.product_name,p.product_type,p.pricing_mode,p.status product_status,g.game_name from pw_product_sku k join pw_product p on p.id=k.product_id join pw_game g on g.id=p.game_id where k.id=#{id}") Map<String,Object> skuSnapshot(long id);
  @Select("select * from pw_player_level where id=#{id}") Map<String,Object> playerLevel(long id);

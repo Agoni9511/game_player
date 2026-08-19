@@ -29,9 +29,11 @@ public class RbacService {
     this.repo = repo; this.encoder = encoder; this.userMapper = userMapper; this.roleMapper = roleMapper; this.menuMapper = menuMapper; this.relations = relations;this.logQueries=logQueries;
   }
 
-  public Map<String,Object> users(int current, int size, String userName, String status) {
+  public Map<String,Object> users(int current, int size, String userName, String userPhone, String userEmail, String status) {
     current = Math.max(current, 1); size = Math.min(Math.max(size, 1), 200);
     var query = new QueryWrapper<SystemUserEntity>().like("username", Objects.toString(userName, ""));
+    if (userPhone != null && !userPhone.isBlank()) query.like("phone", userPhone.trim());
+    if (userEmail != null && !userEmail.isBlank()) query.like("email", userEmail.trim());
     if (status != null && !status.isBlank()) query.eq("enabled", "1".equals(status));
     query.orderByAsc("id");
     var result = userMapper.selectPage(Page.of(current, size), query);
@@ -69,6 +71,56 @@ public class RbacService {
       replaceUserRoles(user.id, c.roleIds());
       return user.id;
     } catch (DuplicateKeyException e) { throw new IllegalArgumentException("用户名已存在"); }
+  }
+
+  @Transactional
+  public BatchUserResult batchCreateUsers(BatchUserCommand command) {
+    if (command.phones() == null || command.phones().isEmpty()) throw new IllegalArgumentException("请至少输入一个手机号");
+    if (command.phones().size() > 200) throw new IllegalArgumentException("单次最多创建200个用户");
+    if (command.password() == null || command.password().length() < 8 || command.password().length() > 64) {
+      throw new IllegalArgumentException("初始密码需为8-64位");
+    }
+
+    var uniquePhones = new LinkedHashSet<String>();
+    var duplicatePhones = new LinkedHashSet<String>();
+    var invalidPhones = new LinkedHashSet<String>();
+    for (var rawPhone : command.phones()) {
+      var phone = rawPhone == null ? "" : rawPhone.trim();
+      if (!phone.matches("1[3-9]\\d{9}")) {
+        if (!phone.isBlank()) invalidPhones.add(phone);
+      } else if (!uniquePhones.add(phone)) {
+        duplicatePhones.add(phone);
+      }
+    }
+
+    var existingPhones = new LinkedHashSet<String>();
+    if (!uniquePhones.isEmpty()) {
+      var query = new QueryWrapper<SystemUserEntity>()
+        .and(q -> q.in("username", uniquePhones).or().in("phone", uniquePhones));
+      for (var existing : userMapper.selectList(query)) {
+        if (existing.username != null && uniquePhones.contains(existing.username)) existingPhones.add(existing.username);
+        if (existing.phone != null && uniquePhones.contains(existing.phone)) existingPhones.add(existing.phone);
+      }
+    }
+
+    var customerRole = roleMapper.selectOne(new QueryWrapper<SystemRoleEntity>().eq("code", "customer").eq("enabled", true));
+    if (customerRole == null) throw new IllegalArgumentException("普通用户角色不存在或已停用");
+
+    var createdPhones = new ArrayList<String>();
+    for (var phone : uniquePhones) {
+      if (existingPhones.contains(phone)) continue;
+      var user = new SystemUserEntity();
+      user.username = phone;
+      user.password = encoder.encode(command.password());
+      user.nickname = "用户" + phone.substring(7);
+      user.phone = phone;
+      user.gender = "未知";
+      user.enabled = true;
+      userMapper.insert(user);
+      relations.addUserRole(user.id, customerRole.id);
+      createdPhones.add(phone);
+    }
+    return new BatchUserResult(command.phones().size(), createdPhones.size(), createdPhones, new ArrayList<>(existingPhones), new ArrayList<>(duplicatePhones), new ArrayList<>(invalidPhones));
   }
 
   @Transactional
@@ -162,6 +214,8 @@ public class RbacService {
   private Map<String,Object> userView(SystemUserEntity r){var x=new LinkedHashMap<String,Object>();x.put("id",r.id);x.put("avatar",r.avatar);x.put("status",Boolean.TRUE.equals(r.enabled)?"1":"2");x.put("enabled",r.enabled);x.put("userName",r.username);x.put("userGender",r.gender);x.put("nickName",r.nickname);x.put("userPhone",r.phone);x.put("userEmail",r.email);x.put("userRoles",repo.roles(r.id));x.put("roleIds",repo.roleIds(r.id));x.put("createTime",r.createdAt);x.put("updateTime",r.updatedAt);return x;}
 
   public record UserCommand(String userName,String password,String nickName,String userPhone,String userEmail,String userGender,String avatar,boolean enabled,List<Long> roleIds){}
+  public record BatchUserCommand(@jakarta.validation.constraints.NotEmpty List<String> phones,@jakarta.validation.constraints.NotBlank String password){}
+  public record BatchUserResult(int inputCount,int createdCount,List<String> createdPhones,List<String> existingPhones,List<String> duplicatePhones,List<String> invalidPhones){}
   public record RoleCommand(String roleName,String roleCode,String description,boolean enabled){}
   public record MenuCommand(Long parentId,String type,String name,String path,String component,String title,String icon,String authMark,int sortNo,boolean hidden,boolean enabled,boolean keepAlive){}
 }

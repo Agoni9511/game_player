@@ -11,6 +11,8 @@
 ```bash
 mysql --default-character-set=utf8mb4 -u root -p peiwan_platform < database/03_incremental_business_data.sql
 mysql --default-character-set=utf8mb4 -u root -p peiwan_platform < database/04_customer_service_ticket.sql
+mysql --default-character-set=utf8mb4 -u root -p peiwan_platform < database/05_player_level_seed.sql
+mysql --default-character-set=utf8mb4 -u root -p peiwan_platform < database/06_product_category_seed.sql
 ```
 
 该增量包含：
@@ -20,6 +22,11 @@ mysql --default-character-set=utf8mb4 -u root -p peiwan_platform < database/04_c
 - 无畏契约、三角洲行动及 COS 图片、区服、位置和段位体系；
 - 4 个充值套餐。
 - 客服工单、会话消息表，以及管理端菜单权限。
+- 三角洲行动 1 个陪玩等级、无畏契约 4 个陪玩等级。
+- `06_product_category_seed.sql` 写入两款游戏按模式划分的商品分类。
+
+如果服务器数据库目前只有空表，先执行 `01_full_schema.sql`（以及需要的菜单脚本），
+再按上面的顺序执行增量；`05` 和 `06` 都依赖 `03` 写入的两个游戏编码。
 
 脚本按业务编码幂等写入，可以重复执行；测试账号密码统一为 `123456`。
 

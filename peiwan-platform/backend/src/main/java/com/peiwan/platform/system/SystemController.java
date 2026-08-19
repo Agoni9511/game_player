@@ -18,13 +18,16 @@ public class SystemController {
 
   @PreAuthorize("hasAuthority('system:user:list') or hasRole('admin')")
   @GetMapping("/api/user/list")
-  public ApiResponse<?> users(@RequestParam(defaultValue="1") int current,@RequestParam(defaultValue="20") int size,@RequestParam(required=false) String userName,@RequestParam(required=false) String status) { return ApiResponse.ok(service.users(current,size,userName,status)); }
+  public ApiResponse<?> users(@RequestParam(defaultValue="1") int current,@RequestParam(defaultValue="20") int size,@RequestParam(required=false) String userName,@RequestParam(required=false) String userPhone,@RequestParam(required=false) String userEmail,@RequestParam(required=false) String status) { return ApiResponse.ok(service.users(current,size,userName,userPhone,userEmail,status)); }
 
   @PreAuthorize("hasAnyAuthority('system:user:create','system:user:update','system:user:assign-role') or hasRole('admin')")
   @GetMapping("/api/role/options") public ApiResponse<?> roleOptions() { return ApiResponse.ok(service.roleOptions()); }
 
   @PreAuthorize("hasAuthority('system:user:create') or hasRole('admin')")
   @PostMapping("/api/user") public ApiResponse<?> createUser(Authentication auth,@Valid @RequestBody RbacService.UserCommand body,HttpServletRequest req) { long id=service.createUser(body);audit.operation(auth,"system:user:create","USER",id,"创建用户 "+body.userName(),req);return ApiResponse.ok(Map.of("id",id)); }
+
+  @PreAuthorize("hasAuthority('system:user:create') or hasRole('admin')")
+  @PostMapping("/api/user/batch") public ApiResponse<?> batchCreateUsers(Authentication auth,@Valid @RequestBody RbacService.BatchUserCommand body,HttpServletRequest req) { var result=service.batchCreateUsers(body);audit.operation(auth,"system:user:create","USER_BATCH",null,"批量创建用户：成功="+result.createdCount()+"，已存在="+result.existingPhones().size()+"，无效="+result.invalidPhones().size(),req);return ApiResponse.ok(result); }
 
   @PreAuthorize("hasAuthority('system:user:update') or hasRole('admin')")
   @PutMapping("/api/user/{id}") public ApiResponse<?> updateUser(Authentication auth,@PathVariable long id,@Valid @RequestBody RbacService.UserCommand body,HttpServletRequest req) { service.updateUser(id,body,(Long)auth.getPrincipal());audit.operation(auth,"system:user:update","USER",id,"更新用户 "+body.userName(),req);return ApiResponse.ok(); }

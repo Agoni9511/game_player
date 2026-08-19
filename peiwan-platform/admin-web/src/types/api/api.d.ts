@@ -153,6 +153,20 @@ declare namespace Api {
       roleIds: number[]
     }
 
+    interface BatchCreateUserParams {
+      phones: string[]
+      password: string
+    }
+
+    interface BatchCreateUserResult {
+      inputCount: number
+      createdCount: number
+      createdPhones: string[]
+      existingPhones: string[]
+      duplicatePhones: string[]
+      invalidPhones: string[]
+    }
+
     interface MenuSaveParams {
       parentId?: number | null
       type: 'DIRECTORY' | 'MENU' | 'BUTTON'
@@ -201,6 +215,8 @@ declare namespace Api {
     interface PlayerMedia { id?:number;mediaType:string;mediaUrl:string;thumbnailUrl?:string;title?:string;sortNo:number;enabled:boolean }
     interface Player { id:number;playerNo:string;userId?:number;maxActiveOrders?:number;nickname:string;realName?:string;gender:string;phone?:string;email?:string;avatarUrl?:string;coverUrl?:string;introduction?:string;voiceUrl?:string;auditStatus:string;workStatus:string;enabled:boolean;auditRemark?:string;orderCount:number;ratingScore:number;ratingCount:number;sortNo:number;remark?:string;primaryGame?:string;tagIds?:number[];games?:PlayerGame[];media?:PlayerMedia[];createTime?:string }
     interface PlayerSave { userId?:number;maxActiveOrders?:number;nickname:string;realName?:string;gender:string;phone?:string;email?:string;avatarUrl?:string;coverUrl?:string;introduction?:string;voiceUrl?:string;enabled:boolean;sortNo:number;remark?:string;tagIds:number[];games:PlayerGame[];media:PlayerMedia[] }
+    interface BatchCreatePlayerParams { phones:string[];password:string }
+    interface BatchCreatePlayerResult { inputCount:number;createdCount:number;createdPhones:string[];existingPhones:string[];duplicatePhones:string[];invalidPhones:string[] }
     type GameList=Api.Common.PaginatedResponse<Game>;type TagList=Api.Common.PaginatedResponse<PlayerTag>;type PlayerList=Api.Common.PaginatedResponse<Player>;type ServiceList=Api.Common.PaginatedResponse<ServiceItem>;type ProductList=Api.Common.PaginatedResponse<Product>;type OrderList=Api.Common.PaginatedResponse<Order>;type DispatchList=Api.Common.PaginatedResponse<DispatchTask>
   }
 }

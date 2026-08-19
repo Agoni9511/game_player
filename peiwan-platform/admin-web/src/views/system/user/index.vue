@@ -3,10 +3,16 @@
     <UserSearch v-model="searchForm" @search="handleSearch" @reset="resetSearchParams" />
     <ElCard class="art-table-card">
       <ArtTableHeader v-model:columns="columnChecks" :loading="loading" @refresh="refreshData">
-        <template #left><ElButton v-auth="'system:user:create'" @click="showDialog('add')" v-ripple>新增用户</ElButton></template>
+        <template #left>
+          <ElSpace>
+            <ElButton v-auth="'system:user:create'" @click="showDialog('add')" v-ripple>新增用户</ElButton>
+            <ElButton v-auth="'system:user:create'" type="primary" @click="batchDialogVisible=true" v-ripple>批量生成用户</ElButton>
+          </ElSpace>
+        </template>
       </ArtTableHeader>
       <ArtTable :loading="loading" :data="data" :columns="columns" :pagination="pagination" @pagination:size-change="handleSizeChange" @pagination:current-change="handleCurrentChange" />
       <UserDialog v-model:visible="dialogVisible" :type="dialogType" :user-data="currentUser" @submit="refreshData" />
+      <BatchUserDialog v-model:visible="batchDialogVisible" @submit="refreshData" />
     </ElCard>
   </div>
 </template>
@@ -16,6 +22,7 @@
   import { fetchDeleteUser,fetchGetUserList,fetchResetUserPassword,fetchSetUserStatus } from '@/api/system-manage'
   import UserSearch from './modules/user-search.vue'
   import UserDialog from './modules/user-dialog.vue'
+  import BatchUserDialog from './modules/batch-user-dialog.vue'
   import ArtButtonMore,{ type ButtonMoreItem } from '@/components/core/forms/art-button-more/index.vue'
   import { ElMessageBox,ElSwitch,ElTag } from 'element-plus'
   import type { DialogType } from '@/types'
@@ -23,7 +30,7 @@
 
   defineOptions({name:'User'})
   type User=Api.SystemManage.UserListItem
-  const dialogType=ref<DialogType>('add');const dialogVisible=ref(false);const currentUser=ref<Partial<User>>({})
+  const dialogType=ref<DialogType>('add');const dialogVisible=ref(false);const batchDialogVisible=ref(false);const currentUser=ref<Partial<User>>({})
   const searchForm=ref<Api.SystemManage.UserSearchParams>({userName:undefined,userPhone:undefined,userEmail:undefined,status:undefined})
   const {columns,columnChecks,data,loading,pagination,getData,replaceSearchParams,resetSearchParams,handleSizeChange,handleCurrentChange,refreshData}=useTable({core:{apiFn:fetchGetUserList,apiParams:{current:1,size:20},columnsFactory:()=>[
     {type:'index',width:70,label:'序号'},

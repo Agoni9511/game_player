@@ -36,6 +36,10 @@ export function fetchCreateUser(params: Api.SystemManage.UserSaveParams) {
   return request.post<{ id: number }>({ url: '/api/user', params })
 }
 
+export function fetchBatchCreateUsers(params: Api.SystemManage.BatchCreateUserParams) {
+  return request.post<Api.SystemManage.BatchCreateUserResult>({ url: '/api/user/batch', params })
+}
+
 export function fetchUpdateUser(id: number, params: Api.SystemManage.UserSaveParams) {
   return request.put<void>({ url: `/api/user/${id}`, params })
 }
